@@ -1,0 +1,6 @@
+[submodule "vendor/EngramNCA"]
+	path = vendor/EngramNCA
+	url = https://github.com/etimush/EngramNCA.git
+[submodule "vendor/post--growing-ca"]
+	path = vendor/post--growing-ca
+	url = https://github.com/distillpub/post--growing-ca.git
