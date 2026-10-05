@@ -22,9 +22,8 @@ data/*
 !data/engram_primitives/
 !data/engram_primitives/*.png
 
-# Experiment 2 is intentionally excluded from this repository snapshot
+# Legacy post-degeneration prototype remains local
 configs/experiment_2_post_degeneration.yaml
-scripts/run_experiment_2.py
 src/latent_nca/experiment_2/
 tests/test_experiment_2.py
 
