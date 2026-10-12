@@ -83,7 +83,7 @@ def _calibrate_regime(
                     values.append(metrics[name])
             if step < config.calibration.mature_stop:
                 state = model(state, update_probability=config.model.update_probability)
-    arrays = {name: np.asarray(values, dtype=np.float32) for name, values in collected.items()}
+    arrays = {name: np.asarray(values, dtype=np.float64) for name, values in collected.items()}
     regime = TargetRegime.calibrate(arrays, config.calibration.acceptance_quantile)
     return regime, arrays
 
@@ -176,14 +176,14 @@ def _run_branch(
         for sampled_step in range(step, config.evaluation.horizon + 1):
             if sampled_step % config.analysis.hidden_channel_record_every:
                 continue
-            missing = np.full(hidden_channels, np.nan, dtype=np.float32)
+            missing = np.full(hidden_channels, np.nan, dtype=np.float64)
             for name in HIDDEN_CHANNEL_METRIC_NAMES:
                 channel_records[name].append(missing.copy())
             channel_steps.append(sampled_step)
         for sampled_step in range(step, config.evaluation.horizon + 1):
             if sampled_step % config.analysis.visible_channel_record_every:
                 continue
-            missing = np.full(4, np.nan, dtype=np.float32)
+            missing = np.full(4, np.nan, dtype=np.float64)
             for name in VISIBLE_CHANNEL_METRIC_NAMES:
                 visible_channel_records[name].append(missing.copy())
             visible_channel_steps.append(sampled_step)
@@ -204,13 +204,13 @@ def _run_branch(
         if step % config.analysis.hidden_channel_record_every == 0:
             channel_values = hidden_channel_metrics(state, mature_state, previous_state)
             for name, values in channel_values.items():
-                channel_records[name].append(values.detach().cpu().numpy().astype(np.float32))
+                channel_records[name].append(values.detach().cpu().numpy().astype(np.float64))
             channel_steps.append(step)
         if step % config.analysis.visible_channel_record_every == 0:
             channel_values = visible_channel_metrics(state, mature_state, previous_state)
             for name, channel_data in channel_values.items():
                 visible_channel_records[name].append(
-                    channel_data.detach().cpu().numpy().astype(np.float32)
+                    channel_data.detach().cpu().numpy().astype(np.float64)
                 )
             visible_channel_steps.append(step)
         if collect_snapshots and step in snapshot_steps:
@@ -226,7 +226,7 @@ def _run_branch(
             step + 1,
         )
 
-    arrays = {name: np.asarray(values, dtype=np.float32) for name, values in records.items()}
+    arrays = {name: np.asarray(values, dtype=np.float64) for name, values in records.items()}
     flags = np.asarray(regime_flags, dtype=bool)
     outcome = survival_outcome(
         flags,
@@ -311,6 +311,7 @@ def _metadata(config: ExperimentConfig, device: torch.device) -> dict[str, Any]:
         "platform": platform.platform(),
         "torch": torch.__version__,
         "numpy": np.__version__,
+        "measurement_precision": "float64 storage; CPU float64 reductions when float32 squares or sums risk overflow",
     }
 
 

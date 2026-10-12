@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import csv
 import json
+import math
+import tempfile
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -13,8 +16,11 @@ from matplotlib.colors import Normalize
 from matplotlib.lines import Line2D
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
+from threadpoolctl import threadpool_limits
 
+from latent_nca.artifacts import file_sha256
 from latent_nca.data.device import get_device, seed_everything
+from latent_nca.data.images import load_distill_target
 
 from .conditions import (
     ConditionSpec,
@@ -23,6 +29,7 @@ from .conditions import (
     resolve_intervention_reference,
 )
 from .config import ExperimentConfig, load_experiment_config
+from .metrics import MorphologyEvaluator, TargetRegime, survival_outcome
 from .model import load_model
 
 plt.switch_backend("Agg")
@@ -43,8 +50,8 @@ class TemporalAttractorSettings:
             raise ValueError("horizon must be positive")
         if not 0 <= self.dense_until <= self.horizon:
             raise ValueError("dense_until must be between zero and horizon")
-        if self.record_every <= 0 or self.crop_size <= 0:
-            raise ValueError("record_every and crop_size must be positive")
+        if self.record_every <= 0 or self.crop_size < 0:
+            raise ValueError("record_every must be positive; crop_size must be nonnegative")
         if self.pca_components < 3:
             raise ValueError("pca_components must be at least three")
         if self.update_probability is not None and not 0.0 < self.update_probability <= 1.0:
@@ -56,6 +63,8 @@ class StateTrajectory:
     steps: np.ndarray
     features: np.ndarray
     divergence_step: int | None
+    in_regime: np.ndarray | None = None
+    first_failure_step: int | None = None
 
 
 @dataclass(frozen=True)
@@ -94,6 +103,10 @@ def _state_feature(
     if state.ndim != 4 or state.shape[0] != 1:
         raise ValueError("state must have shape [1, C, H, W] or [C, H, W]")
     height, width = state.shape[-2:]
+    if crop_size == 0:
+        return state[0].detach().cpu().numpy().reshape(-1).astype(np.float32)
+    if crop_size < 0:
+        raise ValueError("crop_size must be nonnegative")
     if crop_size > height or crop_size > width:
         raise ValueError("crop_size exceeds the NCA substrate")
     top = (height - crop_size) // 2
@@ -111,6 +124,9 @@ def _record_condition(
     settings: TemporalAttractorSettings,
     continuation_seed: int,
     intervention_reference_state: torch.Tensor | None = None,
+    evaluator: MorphologyEvaluator | None = None,
+    regime: TargetRegime | None = None,
+    feature_path: Path | None = None,
 ) -> StateTrajectory:
     state = mature_state.clone()
     intervention_reference_state = (
@@ -118,7 +134,15 @@ def _record_condition(
     )
     seed_everything(continuation_seed)
     steps: list[int] = []
-    features: list[np.ndarray] = []
+    sample_count = sum(_record_step(step, settings) for step in range(settings.horizon + 1))
+    shape = (sample_count, _state_feature(state, settings.crop_size).size)
+    features = (
+        np.lib.format.open_memmap(feature_path, mode="w+", dtype=np.float32, shape=shape)
+        if feature_path is not None
+        else np.empty(shape, dtype=np.float32)
+    )
+    flags: list[bool] = []
+    previous_state = None
     divergence_step: int | None = None
     update_probability = (
         config.model.update_probability
@@ -126,14 +150,24 @@ def _record_condition(
         else settings.update_probability
     )
     for step in range(settings.horizon + 1):
+        values = evaluator.evaluate(state, previous_state) if evaluator is not None else None
+        if not bool(torch.isfinite(state).all().item()) or (
+            values is not None and not all(math.isfinite(value) for value in values.values())
+        ):
+            divergence_step = step
+            if regime is not None:
+                flags.append(False)
+            break
+        if regime is not None:
+            if values is None:
+                raise ValueError("regime classification requires a morphology evaluator")
+            flags.append(regime.contains(values))
         if _record_step(step, settings):
-            if not bool(torch.isfinite(state).all().item()):
-                divergence_step = step
-                break
+            features[len(steps)] = _state_feature(state, settings.crop_size)
             steps.append(step)
-            features.append(_state_feature(state, settings.crop_size))
         if step == settings.horizon:
             break
+        previous_state = state
         state = model(state, update_probability=update_probability)
         state = apply_post_step_intervention(
             state,
@@ -141,32 +175,74 @@ def _record_condition(
             condition,
             step + 1,
         )
+    if not steps:
+        raise ValueError(f"{condition.name}: the initial mature state has non-finite measurements")
+    outcome = (
+        survival_outcome(flags, config.evaluation.failure_patience, divergence_step)
+        if flags
+        else None
+    )
     return StateTrajectory(
         np.asarray(steps, dtype=np.int64),
-        np.stack(features),
+        features[: len(steps)],
         divergence_step,
+        np.asarray(flags, dtype=bool) if flags else None,
+        None if outcome is None else outcome.first_failure_step,
     )
 
 
 def _fit_projection(
-    matrix: np.ndarray,
+    matrix: np.ndarray | tuple[np.ndarray, ...],
     components: int,
     random_state: int,
+    workspace: Path | None = None,
 ) -> Projection:
-    if matrix.ndim != 2 or matrix.shape[0] < 3:
-        raise ValueError("PCA matrix must contain at least three samples")
-    if not np.isfinite(matrix).all():
-        raise ValueError("PCA matrix contains non-finite values")
-    matrix = np.asarray(matrix, dtype=np.float64)
+    matrices = (matrix,) if isinstance(matrix, np.ndarray) else matrix
+    samples = sum(part.shape[0] for part in matrices)
+    if (
+        not matrices
+        or samples < 3
+        or any(part.ndim != 2 or part.shape[1] != matrices[0].shape[1] for part in matrices)
+    ):
+        raise ValueError("PCA needs at least three samples with matching feature dimensions")
+    if matrices[0].shape[1] < 3:
+        raise ValueError("PCA visualization requires at least three features")
     scaler = StandardScaler()
-    scaled = scaler.fit_transform(matrix)
-    component_count = min(components, scaled.shape[0] - 1, scaled.shape[1])
+    for part in matrices:
+        for start in range(0, len(part), 64):
+            block = np.asarray(part[start : start + 64], dtype=np.float64)
+            if not np.isfinite(block).all():
+                raise ValueError("PCA matrix contains non-finite values")
+            scaler.partial_fit(block)
+    shape = (samples, matrices[0].shape[1])
+    scaled = (
+        np.lib.format.open_memmap(
+            workspace / "scaled_pca.npy", mode="w+", dtype=np.float64, shape=shape
+        )
+        if workspace is not None
+        else np.empty(shape, dtype=np.float64)
+    )
+    offset = 0
+    for part in matrices:
+        for start in range(0, len(part), 64):
+            block = part[start : start + 64]
+            scaled[offset : offset + len(block)] = scaler.transform(
+                np.asarray(block, dtype=np.float64)
+            )
+            offset += len(block)
+    component_count = min(components, samples, shape[1])
     pca = PCA(
         n_components=component_count,
         svd_solver="randomized",
         random_state=random_state,
+        copy=False,
     )
-    coordinates = pca.fit_transform(scaled)
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore", message="invalid value encountered in divide", category=RuntimeWarning
+        )
+        coordinates = pca.fit_transform(scaled)
+    pca.explained_variance_ratio_ = np.nan_to_num(pca.explained_variance_ratio_, nan=0.0)
     return Projection(scaler, pca, coordinates)
 
 
@@ -174,10 +250,14 @@ def _transform_with_residual(
     features: np.ndarray,
     projection: Projection,
 ) -> tuple[np.ndarray, np.ndarray]:
-    scaled = projection.scaler.transform(np.asarray(features, dtype=np.float64))
-    coordinates = projection.pca.transform(scaled)
-    reconstructed = projection.pca.inverse_transform(coordinates)
-    residual = np.sqrt(np.mean(np.square(scaled - reconstructed), axis=1))
+    coordinates = np.empty((len(features), projection.pca.n_components_))
+    residual = np.empty(len(features))
+    for start in range(0, len(features), 64):
+        block = slice(start, start + 64)
+        scaled = projection.scaler.transform(np.asarray(features[block], dtype=np.float64))
+        coordinates[block] = projection.pca.transform(scaled)
+        reconstructed = projection.pca.inverse_transform(coordinates[block])
+        residual[block] = np.sqrt(np.mean(np.square(scaled - reconstructed), axis=1))
     return coordinates, residual
 
 
@@ -359,7 +439,7 @@ def _draw_trajectory(
         s=42,
         zorder=4,
     )
-    if failure_step is not None:
+    if failure_step is not None and steps[0] <= failure_step <= steps[-1]:
         failure_index = _nearest_step_index(steps, failure_step)
         axis.scatter(
             coordinates[failure_index, x_index],
@@ -374,6 +454,23 @@ def _draw_trajectory(
     return points
 
 
+def _projection_axes(condition_count: int):
+    columns = min(condition_count, 3)
+    blocks = (condition_count + columns - 1) // columns
+    figure, axes = plt.subplots(
+        2 * blocks,
+        columns,
+        figsize=(5.0 * columns, 6.2 * blocks + 1),
+        squeeze=False,
+        layout="constrained",
+    )
+    for index in range(condition_count, blocks * columns):
+        block, column = divmod(index, columns)
+        for row in (0, 1):
+            axes[2 * block + row, column].set_visible(False)
+    return figure, axes, columns
+
+
 def _plot_reference_projection(
     path: Path,
     conditions: tuple[ConditionSpec, ...],
@@ -384,20 +481,15 @@ def _plot_reference_projection(
     failures: dict[str, int | None],
     horizon: int,
 ) -> None:
-    figure, axes = plt.subplots(
-        2,
-        len(conditions),
-        figsize=(4.0 * len(conditions), 7.8),
-        squeeze=False,
-        layout="constrained",
-    )
+    figure, axes, columns = _projection_axes(len(conditions))
     normalization = Normalize(0, horizon)
     points = None
     pairs = ((0, 1), (0, 2))
     ratio = projection.pca.explained_variance_ratio_ * 100.0
-    for column, condition in enumerate(conditions):
+    for index, condition in enumerate(conditions):
+        block, column = divmod(index, columns)
         for row, (x_index, y_index) in enumerate(pairs):
-            axis = axes[row, column]
+            axis = axes[2 * block + row, column]
             axis.scatter(
                 reference_coordinates[:, x_index],
                 reference_coordinates[:, y_index],
@@ -419,7 +511,7 @@ def _plot_reference_projection(
             axis.set_ylabel(f"PC{y_index + 1} ({ratio[y_index]:.1f}%)")
             axis.grid(alpha=0.18)
             if row == 0:
-                axis.set_title(condition.label)
+                axis.set_title(condition.label, fontsize=11)
     if points is not None:
         figure.colorbar(points, ax=axes, label="Steps after H*", shrink=0.82)
     figure.suptitle("Trajectories in the target-regime reference PCA", fontsize=15)
@@ -438,19 +530,14 @@ def _plot_pairwise_projections(
     failures: dict[str, int | None],
     horizon: int,
 ) -> None:
-    figure, axes = plt.subplots(
-        2,
-        len(conditions),
-        figsize=(4.0 * len(conditions), 7.8),
-        squeeze=False,
-        layout="constrained",
-    )
+    figure, axes, columns = _projection_axes(len(conditions))
     normalization = Normalize(0, horizon)
     points = None
-    for column, condition in enumerate(conditions):
+    for index, condition in enumerate(conditions):
+        block, column = divmod(index, columns)
         ratio = projections[condition.name].pca.explained_variance_ratio_ * 100.0
         for row, (x_index, y_index) in enumerate(((0, 1), (0, 2))):
-            axis = axes[row, column]
+            axis = axes[2 * block + row, column]
             if condition.name != "baseline":
                 axis.plot(
                     baseline_coordinates[condition.name][:, x_index],
@@ -480,7 +567,7 @@ def _plot_pairwise_projections(
             axis.set_ylabel(f"PC{y_index + 1} ({ratio[y_index]:.1f}%)")
             axis.grid(alpha=0.18)
             if row == 0:
-                axis.set_title(condition.label)
+                axis.set_title(condition.label, fontsize=11)
     if points is not None:
         figure.colorbar(points, ax=axes, label="Steps after H*", shrink=0.82)
     figure.suptitle(
@@ -501,11 +588,13 @@ def _plot_pairwise_3d(
     failures: dict[str, int | None],
     horizon: int,
 ) -> None:
-    figure = plt.figure(figsize=(4.2 * len(conditions), 4.5), layout="constrained")
+    columns = min(len(conditions), 3)
+    rows = (len(conditions) + columns - 1) // columns
+    figure = plt.figure(figsize=(5.5 * columns, 4.8 * rows + 1), layout="constrained")
     normalization = Normalize(0, horizon)
     points = None
-    for column, condition in enumerate(conditions, start=1):
-        axis = figure.add_subplot(1, len(conditions), column, projection="3d")
+    for index, condition in enumerate(conditions, start=1):
+        axis = figure.add_subplot(rows, columns, index, projection="3d")
         if condition.name != "baseline":
             reference = baseline_coordinates[condition.name]
             axis.plot(
@@ -540,7 +629,7 @@ def _plot_pairwise_3d(
         axis.scatter(*coordinates[0, :3], color="black", s=34)
         axis.scatter(*coordinates[-1, :3], color="#0072B2", marker="x", s=38)
         failure_step = failures.get(condition.name)
-        if failure_step is not None:
+        if failure_step is not None and steps[0] <= failure_step <= steps[-1]:
             failure_index = _nearest_step_index(steps, failure_step)
             axis.scatter(
                 *coordinates[failure_index, :3],
@@ -550,7 +639,7 @@ def _plot_pairwise_3d(
                 s=40,
                 linewidth=1.2,
             )
-        axis.set_title(condition.label)
+        axis.set_title(condition.label, fontsize=11)
         axis.set_xlabel("PC1")
         axis.set_ylabel("PC2")
         axis.set_zlabel("PC3")
@@ -563,20 +652,15 @@ def _plot_pairwise_3d(
     plt.close(figure)
 
 
-def _load_reference_flags(results_dir: Path, replicate: int) -> np.ndarray:
-    with np.load(results_dir / "trajectory_metrics.npz") as archive:
-        replicate_ids = archive["replicate_ids"].astype(int)
-        matches = np.flatnonzero(replicate_ids == replicate)
-        if matches.size != 1:
-            raise ValueError(f"replicate {replicate} is absent or duplicated in trajectory metrics")
-        return archive["baseline__in_regime"][int(matches[0])]
-
-
 def _resolved_conditions(
     config: ExperimentConfig,
-    requested: tuple[str, ...],
+    requested: tuple[str, ...] | None,
 ) -> tuple[ConditionSpec, ...]:
     available = {condition.name: condition for condition in build_conditions(config.interventions)}
+    if requested is None:
+        return tuple(available.values())
+    if len(requested) != len(set(requested)):
+        raise ValueError("requested conditions must be unique")
     missing = [name for name in requested if name not in available]
     if missing:
         raise ValueError(f"conditions are absent from the resolved experiment: {missing}")
@@ -589,24 +673,56 @@ def run_temporal_attractor_analysis(
     results_dir: str | Path,
     output_dir: str | Path,
     replicate: int,
-    condition_names: tuple[str, ...],
+    condition_names: tuple[str, ...] | None,
     settings: TemporalAttractorSettings,
     device_name: str | None = None,
+) -> Path:
+    with (
+        tempfile.TemporaryDirectory(prefix="nca-temporal-pca-") as temporary,
+        threadpool_limits(limits=1),
+    ):
+        return _run_temporal_attractor_analysis(
+            results_dir,
+            output_dir,
+            replicate,
+            condition_names,
+            settings,
+            device_name,
+            Path(temporary),
+        )
+
+
+def _run_temporal_attractor_analysis(
+    results_dir: str | Path,
+    output_dir: str | Path,
+    replicate: int,
+    condition_names: tuple[str, ...] | None,
+    settings: TemporalAttractorSettings,
+    device_name: str | None,
+    workspace: Path,
 ) -> Path:
     settings.validate()
     results_dir = Path(results_dir)
     output_dir = Path(output_dir)
     if output_dir.exists() and any(output_dir.iterdir()):
         raise FileExistsError(f"output directory is not empty: {output_dir}")
-    output_dir.mkdir(parents=True, exist_ok=True)
-
     config = load_experiment_config(results_dir / "resolved_config.json")
     conditions = _resolved_conditions(config, condition_names)
+    source_metadata_path = results_dir / "metadata.json"
+    source_metadata = (
+        json.loads(source_metadata_path.read_text()) if source_metadata_path.exists() else {}
+    )
+    hashes = {name: file_sha256(getattr(config, name)) for name in ("checkpoint", "target")}
+    for name, digest in hashes.items():
+        expected = source_metadata.get(f"{name}_sha256")
+        if expected is not None and expected != digest:
+            raise ValueError(f"{name} differs from the file used in {results_dir}")
     device = get_device(device_name or config.device)
     model = load_model(config, device)
     mature_states: dict[int, dict[str, Any]] = torch.load(
         results_dir / "mature_states.pt",
         map_location="cpu",
+        weights_only=True,
     )
     if replicate not in mature_states:
         raise ValueError(f"replicate {replicate} is absent from mature_states.pt")
@@ -617,16 +733,21 @@ def run_temporal_attractor_analysis(
     continuation_seed = (
         config.evaluation.seed_start + config.evaluation.continuation_seed_offset + replicate
     )
-    failures = _condition_failures(results_dir, replicate)
-    reference_flags = _load_reference_flags(results_dir, replicate)
+    source_failures = _condition_failures(results_dir, replicate)
+    regime = TargetRegime(**json.loads((results_dir / "target_regime.json").read_text()))
+    target = load_distill_target(
+        config.target, config.model.target_size, config.model.target_padding, device
+    )
+    _state_feature(mature_state, settings.crop_size)
+    references = {
+        condition.name: resolve_intervention_reference(mature_state, condition, development_states)
+        for condition in conditions
+    }
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     trajectories: dict[str, StateTrajectory] = {}
     for condition in conditions:
-        intervention_reference_state = resolve_intervention_reference(
-            mature_state,
-            condition,
-            development_states,
-        )
+        intervention_reference_state = references[condition.name]
         print(f"Recording {condition.label}...", flush=True)
         trajectory = _record_condition(
             model,
@@ -636,6 +757,11 @@ def run_temporal_attractor_analysis(
             settings,
             continuation_seed,
             intervention_reference_state=intervention_reference_state,
+            evaluator=MorphologyEvaluator(
+                target, config.model.alpha_threshold, mature_state, intervention_reference_state
+            ),
+            regime=regime,
+            feature_path=workspace / f"{condition.name}.npy",
         )
         trajectories[condition.name] = trajectory
         np.savez_compressed(
@@ -645,27 +771,24 @@ def run_temporal_attractor_analysis(
             divergence_step=np.asarray(
                 -1 if trajectory.divergence_step is None else trajectory.divergence_step
             ),
+            in_regime=trajectory.in_regime,
         )
 
     baseline = trajectories["baseline"]
+    failures = {name: trajectory.first_failure_step for name, trajectory in trajectories.items()}
     mature_features = np.stack(
         [
             _state_feature(record["state"], settings.crop_size)
             for _, record in sorted(mature_states.items())
         ]
     )
-    baseline_reference_mask = np.asarray(
-        [step < reference_flags.size and bool(reference_flags[step]) for step in baseline.steps],
-        dtype=bool,
-    )
-    reference_matrix = np.concatenate(
-        (mature_features, baseline.features[baseline_reference_mask]),
-        axis=0,
-    )
+    baseline_reference_mask = baseline.in_regime[baseline.steps]
+    reference_matrix = (mature_features, baseline.features[baseline_reference_mask])
     reference_projection = _fit_projection(
         reference_matrix,
         settings.pca_components,
         settings.pca_seed,
+        workspace,
     )
     _save_projection(output_dir / "reference_pca_model.npz", reference_projection)
     reference_coordinates = reference_projection.coordinates
@@ -703,19 +826,20 @@ def run_temporal_attractor_analysis(
         fit_matrix = (
             baseline.features
             if condition.name == "baseline"
-            else np.concatenate((baseline.features, condition_trajectory.features), axis=0)
+            else (baseline.features, condition_trajectory.features)
         )
         projection = _fit_projection(
             fit_matrix,
             settings.pca_components,
             settings.pca_seed + offset + 1,
+            workspace,
         )
         pairwise_projections[condition.name] = projection
-        pairwise_baseline_coordinates[condition.name] = projection.pca.transform(
-            projection.scaler.transform(np.asarray(baseline.features, dtype=np.float64))
+        pairwise_baseline_coordinates[condition.name], _ = _transform_with_residual(
+            baseline.features, projection
         )
-        pairwise_condition_coordinates[condition.name] = projection.pca.transform(
-            projection.scaler.transform(np.asarray(condition_trajectory.features, dtype=np.float64))
+        pairwise_condition_coordinates[condition.name], _ = _transform_with_residual(
+            condition_trajectory.features, projection
         )
         _save_projection(
             output_dir / f"pairwise_pca_model__{condition.name}.npz",
@@ -761,10 +885,21 @@ def run_temporal_attractor_analysis(
             else settings.update_probability
         ),
         "device": str(device),
+        "source_device": source_metadata.get("device"),
+        "checkpoint_sha256": hashes["checkpoint"],
+        "target_sha256": hashes["target"],
+        "source_first_failure_steps": source_failures,
+        "replayed_first_failure_steps": failures,
+        "regime_flags_and_markers": "Recomputed at every step of the replay, using the saved target thresholds.",
         "representation": {
             "channels": f"all {config.model.channels} NCA channels",
-            "spatial_region": f"center {settings.crop_size}x{settings.crop_size} crop",
-            "features": config.model.channels * settings.crop_size**2,
+            "spatial_region": (
+                f"full {mature_state.shape[-2]}x{mature_state.shape[-1]} substrate, including background"
+                if settings.crop_size == 0
+                else f"center {settings.crop_size}x{settings.crop_size} crop"
+            ),
+            "features": baseline.features.shape[1],
+            "pooling": False,
         },
         "reference_fit": {
             "mature_states": len(mature_features),
@@ -774,7 +909,9 @@ def run_temporal_attractor_analysis(
         "interpretation": (
             "Reference PCA uses the mature-state ensemble and the selected control trajectory "
             "while it remains in the target regime. Pairwise PCA models are fitted separately "
-            "and their axes are not directly comparable between conditions."
+            "and their axes are not directly comparable between conditions. A compact PCA "
+            "trajectory alone is not evidence of attraction. Time sampling is dense initially "
+            "and sparser later; this affects the weight of each phase in the pairwise fit."
         ),
     }
     (output_dir / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")

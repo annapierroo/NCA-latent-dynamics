@@ -420,6 +420,7 @@ def plot_snapshots(
     conditions: tuple[ConditionSpec, ...],
     snapshot_steps: tuple[int, ...],
     include_all: bool = False,
+    title: str | None = None,
 ) -> None:
     if not snapshots:
         return
@@ -466,7 +467,9 @@ def plot_snapshots(
                 axis.set_title(f"t={step}")
             if column == 0:
                 axis.set_ylabel(condition_by_name[name].label)
-    figure.tight_layout()
+    if title:
+        figure.suptitle(title, fontsize=12)
+    figure.tight_layout(rect=(0, 0, 1, 0.97) if title else None)
     figure.savefig(path, dpi=180)
     plt.close(figure)
 

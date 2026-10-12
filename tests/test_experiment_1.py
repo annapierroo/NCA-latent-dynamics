@@ -103,6 +103,64 @@ def test_target_region_mse_ignores_errors_outside_target_mask():
     assert np.isclose(target_error["target_region_mse"], 0.25**2)
 
 
+def test_large_finite_state_keeps_mse_and_channel_distances_finite():
+    target = torch.zeros(1, 4, 6, 6)
+    target[:, 3, 2:4, 2:4] = 1
+    mature = torch.ones(1, 16, 6, 6)
+    state = mature.clone()
+    state[:, :4] = target
+    state[:, :4, :2] = 1e20
+    state[:, 4:] = 1e20
+    values = MorphologyEvaluator(target, mature_state=mature).evaluate(state, mature)
+    assert all(np.isfinite(value) for value in values.values())
+    assert values["target_region_mse"] == 0
+    assert values["target_mse"] > float(np.finfo(np.float32).max)
+    channels = hidden_channel_metrics(state, mature, mature)
+    assert all(torch.isfinite(value).all() for value in channels.values())
+
+
+def test_finite_state_does_not_terminate_branch_when_float32_diagnostics_would_overflow():
+    class LargeFiniteModel:
+        def __call__(self, state, update_probability):
+            return torch.full_like(state, 1e20)
+
+    target = torch.ones(1, 4, 4, 4)
+    mature = torch.ones(1, 16, 4, 4)
+    cfg = ExperimentConfig(
+        evaluation=EvaluationConfig(horizon=3, failure_patience=2),
+        analysis=AnalysisConfig(
+            hidden_channel_record_every=1, visible_channel_record_every=1, snapshot_steps=(0, 3)
+        ),
+    )
+    result = _run_branch(
+        LargeFiniteModel(),
+        target,
+        mature,
+        mature,
+        TargetRegime(0.1, 0.9, 0.9, 1.1, 0.95),
+        ConditionSpec("baseline", "Control", "baseline"),
+        cfg,
+        0,
+        1,
+        False,
+    )
+    assert result.summary["numerical_divergence_step"] == ""
+    assert result.summary["first_failure_step"] == 1
+    assert np.isfinite(result.metrics["target_mse"]).all()
+    assert result.metrics["target_mse"].dtype == np.float64
+    assert np.isfinite(result.channel_metrics["relative_l2"]).all()
+
+
+def test_nonfinite_calibration_is_rejected():
+    records = {
+        "target_mse": np.array([0.1, np.inf]),
+        "alpha_iou": np.ones(2),
+        "area_ratio": np.ones(2),
+    }
+    with pytest.raises(ValueError, match="calibration"):
+        TargetRegime.calibrate(records, 0.95)
+
+
 def test_core_morphology_plot_includes_target_region_mse(tmp_path):
     condition = ConditionSpec("baseline", "Control", "baseline")
     metrics = {

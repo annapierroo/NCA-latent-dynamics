@@ -29,6 +29,20 @@ HIDDEN_CHANNEL_METRIC_NAMES = CHANNEL_METRIC_NAMES
 VISIBLE_CHANNEL_METRIC_NAMES = CHANNEL_METRIC_NAMES
 
 
+def _needs_float64_reductions(*tensors: torch.Tensor | None) -> bool:
+    for tensor in tensors:
+        if tensor is None or tensor.dtype == torch.float64:
+            continue
+        limit = np.sqrt(torch.finfo(tensor.dtype).max / (4 * max(tensor.numel(), 1)))
+        if float(tensor.detach().abs().max().cpu()) > limit:
+            return True
+    return False
+
+
+def _cpu_double(tensor: torch.Tensor | None) -> torch.Tensor | None:
+    return None if tensor is None else tensor.detach().to(device="cpu", dtype=torch.float64)
+
+
 @dataclass(frozen=True)
 class TargetRegime:
     target_mse_max: float
@@ -43,6 +57,11 @@ class TargetRegime:
         records: Mapping[str, np.ndarray],
         acceptance_quantile: float,
     ) -> TargetRegime:
+        if not 0.5 < acceptance_quantile < 1.0:
+            raise ValueError("acceptance_quantile must be in (0.5, 1)")
+        for name in ("target_mse", "alpha_iou", "area_ratio"):
+            if not np.asarray(records[name]).size or not np.isfinite(records[name]).all():
+                raise ValueError(f"calibration contains empty or non-finite {name} measurements")
         lower_quantile = 1.0 - acceptance_quantile
         return cls(
             target_mse_max=float(np.quantile(records["target_mse"], acceptance_quantile)),
@@ -92,6 +111,10 @@ class MorphologyEvaluator:
         self.hidden_reference_norm = None
         if self.hidden_reference_state is not None:
             self.hidden_reference_norm = self.hidden_reference_state[:, 4:].norm().clamp_min(1e-8)
+        self._large_reference = _needs_float64_reductions(
+            self.target, mature_state, self.hidden_reference_state
+        )
+        self._double_evaluator = None
 
     @torch.no_grad()
     def evaluate(
@@ -99,14 +122,23 @@ class MorphologyEvaluator:
         state: torch.Tensor,
         previous_state: torch.Tensor | None = None,
     ) -> dict[str, float]:
+        if self._large_reference or _needs_float64_reductions(state, previous_state):
+            if self._double_evaluator is None:
+                self._double_evaluator = MorphologyEvaluator(
+                    _cpu_double(self.target),
+                    self.alpha_threshold,
+                    _cpu_double(self.mature_state),
+                    _cpu_double(self.hidden_reference_state),
+                )
+            return self._double_evaluator.evaluate(_cpu_double(state), _cpu_double(previous_state))
         visible = state[:, :4]
         state_mask = visible[:, 3:4] > self.alpha_threshold
         intersection = (state_mask & self.target_mask).sum().float()
         union = (state_mask | self.target_mask).sum().float().clamp_min(1.0)
         target_region = self.target_mask.expand_as(visible)
-        target_region_mse = (visible - self.target).square().mul(
+        target_region_mse = (visible - self.target).masked_select(
             target_region
-        ).sum() / target_region.sum().clamp_min(1)
+        ).square().sum() / target_region.sum().clamp_min(1)
         values = torch.stack(
             (
                 (visible - self.target).square().mean(),
@@ -147,6 +179,8 @@ def _per_channel_metrics(
     mature: torch.Tensor,
     previous: torch.Tensor | None,
 ) -> dict[str, torch.Tensor]:
+    if _needs_float64_reductions(current, mature, previous):
+        current, mature, previous = _cpu_double(current), _cpu_double(mature), _cpu_double(previous)
     delta = current - mature
     delta_norm = delta.flatten(start_dim=2).norm(dim=2)
     reference_norm = mature.flatten(start_dim=2).norm(dim=2).clamp_min(1e-8)
