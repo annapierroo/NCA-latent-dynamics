@@ -1,0 +1,67 @@
+{
+  "source_results": "/Users/anna/Downloads/Tirocinio Norvegia/Progetto Tesi/reports/experiment_1/butterfly",
+  "replicate": 12,
+  "mature_step": 76,
+  "development_seed": 20012,
+  "continuation_seed": 1020012,
+  "conditions": [
+    "baseline",
+    "hidden_freeze",
+    "hidden_freeze_first_6",
+    "restore_beta_0p1",
+    "periodic_reset_150",
+    "restore_development_step_16_beta_0p1",
+    "restore_development_step_48_beta_0p1",
+    "restore_development_step_16_period_150",
+    "restore_development_step_48_period_150"
+  ],
+  "settings": {
+    "horizon": 10000,
+    "dense_until": 250,
+    "record_every": 10,
+    "crop_size": 0,
+    "pca_components": 12,
+    "pca_seed": 40000,
+    "update_probability": null
+  },
+  "effective_update_probability": 0.5,
+  "device": "mps",
+  "source_device": "mps",
+  "checkpoint_sha256": "90bf243414dfa98d9c630f1ab4e3ddae65a8f61f02fa69c97ce29b657652fa77",
+  "target_sha256": "e39f9a559798544beda6015dbef6b3d03353367d6d9aa8c334b03c9b99d9f563",
+  "source_first_failure_steps": {
+    "baseline": 66,
+    "hidden_freeze": 156,
+    "hidden_freeze_first_6": 105,
+    "restore_beta_0p1": 182,
+    "periodic_reset_150": 66,
+    "restore_development_step_16_beta_0p1": 6,
+    "restore_development_step_48_beta_0p1": 13,
+    "restore_development_step_16_period_150": 66,
+    "restore_development_step_48_period_150": 66
+  },
+  "replayed_first_failure_steps": {
+    "baseline": 66,
+    "hidden_freeze": 156,
+    "hidden_freeze_first_6": 105,
+    "restore_beta_0p1": 182,
+    "periodic_reset_150": 66,
+    "restore_development_step_16_beta_0p1": 6,
+    "restore_development_step_48_beta_0p1": 13,
+    "restore_development_step_16_period_150": 66,
+    "restore_development_step_48_period_150": 66
+  },
+  "regime_flags_and_markers": "Recomputed at every step of the replay, using the saved target thresholds.",
+  "representation": {
+    "channels": "all 16 NCA channels",
+    "spatial_region": "full 72x72 substrate, including background",
+    "features": 82944,
+    "pooling": false
+  },
+  "reference_fit": {
+    "mature_states": 30,
+    "baseline_in_regime_states": 66,
+    "standardized": true
+  },
+  "interpretation": "Reference PCA uses the mature-state ensemble and the selected control trajectory while it remains in the target regime. Pairwise PCA models are fitted separately and their axes are not directly comparable between conditions. A compact PCA trajectory alone is not evidence of attraction. Time sampling is dense initially and sparser later; this affects the weight of each phase in the pairwise fit."
+}

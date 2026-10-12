@@ -1,0 +1,13 @@
+{
+  "experiment": "experiment_1",
+  "created_utc": "2026-09-29T12:04:03.873695+00:00",
+  "checkpoint": "/Users/anna/Downloads/Tirocinio Norvegia/Progetto Tesi/checkpoints/growing/gecko/model.pt",
+  "checkpoint_sha256": "602847e4544077a9022b7678231e91ad26d5780cf3936ebd37eff37a0f39f63d",
+  "target": "/Users/anna/Downloads/Tirocinio Norvegia/Progetto Tesi/data/gecko.png",
+  "target_sha256": "ed2a65721740499ae2e7744b535c02bdbb5781915a8af4ea9741e9c3701c383a",
+  "device": "mps",
+  "python": "3.13.7",
+  "platform": "macOS-14.6-arm64-arm-64bit-Mach-O",
+  "torch": "2.14.0",
+  "numpy": "2.5.3"
+}

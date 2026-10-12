@@ -1,0 +1,7 @@
+{
+  "target_mse_max": 0.0009083515615202487,
+  "alpha_iou_min": 0.9510050415992737,
+  "area_ratio_min": 0.9909909963607788,
+  "area_ratio_max": 1.012869954109192,
+  "acceptance_quantile": 0.95
+}
