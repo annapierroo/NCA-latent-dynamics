@@ -1,12 +1,11 @@
-"""Persistent NCA versus Growing NCA with mature hidden-state restoration.
-"""
-
 from __future__ import annotations
 
 import argparse
-import csv
+import errno
+import heapq
 import json
 import platform
+import shutil
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
@@ -21,46 +20,65 @@ from latent_nca.training.growing import TrainingConfig, train_growing, train_per
 
 MORPHOLOGIES = ("gecko", "butterfly")
 SYSTEMS = ("persistent", "growing_restore")
-BRANCHES = (
-    "control",
-    "independent_control",
-    "noise_0p01",
-    "noise_0p05",
-    "noise_0p1",
-    "erase_0p05",
-    "erase_0p1",
+NOISE_BRANCHES = ("noise_0p1", "noise_0p25")
+COLORS = (
+    "#343a40",
+    "#2a6fbb",
+    "#7761b2",
+    "#d48c18",
+    "#c44949",
+    "#12a89d",
+    "#b04c96",
+    "#557b38",
+    "#866448",
 )
-LABELS = (
-    "Control",
-    "Independent update masks",
-    "Hidden noise 1%",
-    "Hidden noise 5%",
-    "Hidden noise 10%",
-    "Erase 5%",
-    "Erase 10%",
-)
-COLORS = ("#343a40", "#889096", "#2a6fbb", "#12a89d", "#7761b2", "#d48c18", "#c44949")
-GROUPS = {"hidden": slice(4, 16), "rgba": slice(0, 4)}
+# Anatomical annotations in the original target image's (x, y) coordinates.
+PRIMITIVE_REGIONS = {
+    "gecko": {
+        "leg": (((85, 151), (131, 146), (149, 176), (126, 205), (83, 203)), (107, 177)),
+        "head": (((30, 0), (96, 0), (104, 69), (74, 88), (32, 79)), (65, 14)),
+        "tail": (((151, 165), (189, 159), (239, 184), (239, 239), (142, 239)), (208, 222)),
+        "torso": (((78, 84), (102, 71), (160, 127), (159, 152), (128, 159), (86, 128)), (119, 115)),
+    },
+    "butterfly": {
+        "upper_left_wing": (
+            ((20, 120), (259, 120), (282, 217), (252, 273), (139, 318), (20, 252)),
+            (145, 205),
+        ),
+        "upper_right_wing": (
+            ((359, 120), (598, 120), (598, 252), (479, 318), (366, 273), (336, 217)),
+            (473, 205),
+        ),
+        "lower_left_wing": (
+            ((151, 320), (262, 283), (284, 316), (263, 462), (214, 489), (135, 428)),
+            (205, 390),
+        ),
+        "central_body": (
+            (
+                (284, 179),
+                (334, 179),
+                (347, 244),
+                (335, 337),
+                (319, 412),
+                (299, 412),
+                (281, 337),
+                (270, 244),
+            ),
+            (309, 265),
+        ),
+    },
+}
+PRIMITIVE_SOURCE_SIZE = {"gecko": 240, "butterfly": 618}
 METRICS = (
     "target_mse",
-    "target_region_mse",
     "alpha_iou",
     "area_ratio",
-    "hidden_step_rms",
-    "rgba_step_rms",
-    "hidden_mature_rms",
-    "rgba_mature_rms",
     "hidden_pair_rms",
-    "rgba_pair_rms",
-    "hidden_pair_relative",
-    "rgba_pair_relative",
-    "hidden_cloud_distance",
     "hidden_pca_residual",
-    "rgba_cloud_distance",
-    "rgba_pca_residual",
-    "hidden_radius",
-    "rgba_radius",
 )
+METRIC_INDEX = {name: index for index, name in enumerate(METRICS)}
+MORPHOLOGY_METRICS = ("target_mse", "alpha_iou", "area_ratio")
+CONTROL_MORPHOLOGY_METRICS = ("rgba_control_mse", "alpha_control_iou")
 EPS = 1e-12
 
 
@@ -86,6 +104,7 @@ class Settings:
     pca_components: int = 12
     seed: int = 50_000
     snapshot_replicates: int = 3
+    erase_fraction: float | None = None
 
     def validate(self) -> None:
         if not 0 <= self.reference_start < self.perturb_step < self.horizon:
@@ -102,6 +121,34 @@ class Settings:
             raise ValueError("Require 0 < beta < 1 and at least three PCA components")
         if self.channels != 16 or self.snapshot_replicates < 0:
             raise ValueError("This protocol uses 16 channels and nonnegative snapshot counts")
+        if self.erase_fraction is not None and not 0 < self.erase_fraction < 1:
+            raise ValueError("erase-fraction must lie between 0 and 1")
+
+
+def condition_names(erasure_plan: dict) -> tuple[str, ...]:
+    return ("control", *NOISE_BRANCHES, *erasure_plan)
+
+
+def retained_branch_indices(branches) -> list[int]:
+    # Older archives include a control condition no longer used in this experiment.
+    return [index for index, name in enumerate(branches) if name != "independent_control"]
+
+
+def condition_labels(branches) -> list[str]:
+    labels = []
+    for name in branches:
+        if name == "control":
+            labels.append("Control")
+        elif name.startswith("noise_"):
+            labels.append(f"Hidden noise {float(name[6:].replace('p', '.')):.0%}")
+        else:
+            part = name.removeprefix("erase_")
+            labels.append(
+                f"Erase {float(part.replace('p', '.')):.0%}"
+                if part.startswith("0p")
+                else "Erase " + part.replace("_", " ")
+            )
+    return labels
 
 
 def save_json(path: Path, payload: object) -> None:
@@ -110,10 +157,37 @@ def save_json(path: Path, payload: object) -> None:
     temporary.replace(path)
 
 
+def require_disk_space(path: Path, required_bytes: int = 256 * 1024**2) -> None:
+    free = shutil.disk_usage(path.parent).free
+    if free < required_bytes:
+        raise OSError(
+            errno.ENOSPC,
+            f"Insufficient disk space: {free / 1024**2:.0f} MiB free, "
+            f"at least {required_bytes / 1024**2:.0f} MiB required. "
+            "Free space and rerun the same command; completed replicas will be skipped.",
+            str(path),
+        )
+
+
 def save_npz(path: Path, **payload) -> None:
+    # Allow for incompressible data and ZIP overhead without touching an existing archive.
+    required_bytes = sum(np.asarray(value).nbytes for value in payload.values()) + 64 * 1024**2
+    require_disk_space(path, required_bytes)
     temporary = path.with_suffix(".tmp.npz")
-    np.savez_compressed(temporary, **payload)
-    temporary.replace(path)
+    try:
+        np.savez_compressed(temporary, **payload)
+        temporary.replace(path)
+    except OSError as error:
+        if error.errno == errno.ENOSPC:
+            raise OSError(
+                errno.ENOSPC,
+                "Disk filled while saving. Free space and rerun the same command; "
+                "completed replicas are unchanged, but the unsaved replica must be repeated.",
+                str(path),
+            ) from error
+        raise
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def checkpoint_path(root: Path, morphology: str, system: str, tag: str) -> Path:
@@ -168,7 +242,6 @@ def morphology_metrics(state: np.ndarray, target: np.ndarray, threshold: float) 
     return np.asarray(
         [
             error.mean(),
-            error[:, mask].mean(),
             (alive & mask).sum() / max(int((alive | mask).sum()), 1),
             alive.sum() / max(int(mask.sum()), 1),
         ],
@@ -176,13 +249,29 @@ def morphology_metrics(state: np.ndarray, target: np.ndarray, threshold: float) 
     )
 
 
+def control_morphology_metrics(state, control, threshold):
+    if control is None:
+        return np.full(2, np.nan)
+    current_mask, control_mask = state[3] > threshold, control[3] > threshold
+    union = int((current_mask | control_mask).sum())
+    return np.asarray(
+        [
+            np.mean((state[:4].astype(np.float64) - control[:4]) ** 2),
+            (current_mask & control_mask).sum() / union if union else 1.0,
+        ]
+    )
+
+
 def inside_regime(values: np.ndarray, regime: dict) -> np.ndarray:
+    mse, iou, area = (values[..., METRIC_INDEX[name]] for name in MORPHOLOGY_METRICS)
     return (
-        np.isfinite(values[..., :4]).all(axis=-1)
-        & (values[..., 0] <= regime["target_mse_max"])
-        & (values[..., 2] >= regime["alpha_iou_min"])
-        & (values[..., 3] >= regime["area_ratio_min"])
-        & (values[..., 3] <= regime["area_ratio_max"])
+        np.isfinite(mse)
+        & np.isfinite(iou)
+        & np.isfinite(area)
+        & (mse <= regime["target_mse_max"])
+        & (iou >= regime["alpha_iou_min"])
+        & (area >= regime["area_ratio_min"])
+        & (area <= regime["area_ratio_max"])
     )
 
 
@@ -199,10 +288,12 @@ def shared_regime(records: np.ndarray, quantile: float) -> dict:
     if not np.isfinite(records).all():
         raise ValueError("Non-finite calibration states; inspect the checkpoint before evaluation")
     return {
-        "target_mse_max": float(np.quantile(records[..., 0], quantile)),
-        "alpha_iou_min": float(np.quantile(records[..., 2], 1 - quantile)),
-        "area_ratio_min": float(np.quantile(records[..., 3], 1 - quantile)),
-        "area_ratio_max": float(np.quantile(records[..., 3], quantile)),
+        "target_mse_max": float(np.quantile(records[..., METRIC_INDEX["target_mse"]], quantile)),
+        "alpha_iou_min": float(np.quantile(records[..., METRIC_INDEX["alpha_iou"]], 1 - quantile)),
+        "area_ratio_min": float(
+            np.quantile(records[..., METRIC_INDEX["area_ratio"]], 1 - quantile)
+        ),
+        "area_ratio_max": float(np.quantile(records[..., METRIC_INDEX["area_ratio"]], quantile)),
         "acceptance_quantile": quantile,
         "definition": "Equal numbers of independent development rollouts per system; "
         "within-rollout snapshots are temporally correlated. Shared per morphology/checkpoint tag. "
@@ -262,21 +353,18 @@ class LocalPCA:
     components: np.ndarray
     variance_ratio: np.ndarray
     scale: np.ndarray
-    reference_scores: np.ndarray
-    cloud_limit: float
     residual_limit: float
     effective_components: int
     mean_shift_in_radii: float
     speed_ratio: float
 
-    def project(self, state: np.ndarray) -> tuple[np.ndarray, float, float, float]:
+    def project(self, state: np.ndarray) -> tuple[np.ndarray, float]:
         centered = (state / self.scale[:, None, None]).reshape(-1) - self.mean
         scores = centered @ self.components.T
         residual = float(
             np.sqrt(max(float(centered @ centered - scores @ scores), 0) / centered.size)
         )
-        cloud = float(np.sqrt(np.min(np.mean((self.reference_scores - scores) ** 2, axis=1))))
-        return scores, residual, cloud, rms(centered)
+        return scores, residual
 
 
 def fit_local_pca(reference: np.ndarray, n_components: int, seed: int) -> LocalPCA:
@@ -296,11 +384,9 @@ def fit_local_pca(reference: np.ndarray, n_components: int, seed: int) -> LocalP
         pca = PCA(n_components=count, svd_solver="randomized", random_state=seed)
         pca.fit(matrix)
         mean, components, ratio = pca.mean_, pca.components_, pca.explained_variance_ratio_
-    fit_scores = (matrix - mean) @ components.T
-    local = LocalPCA(mean, components, ratio, scale, fit_scores, 0, 0, 0, 0, 0)
-    heldout = [local.project(frame) for frame in validation]
-    local.cloud_limit = max(float(np.quantile([x[2] for x in heldout], 0.99)), 1e-8)
-    local.residual_limit = max(float(np.quantile([x[1] for x in heldout], 0.99)), 1e-8)
+    local = LocalPCA(mean, components, ratio, scale, 0, 0, 0, 0)
+    residuals = [local.project(frame)[1] for frame in validation]
+    local.residual_limit = max(float(np.quantile(residuals, 0.99)), 1e-8)
     local.effective_components = int(np.searchsorted(np.cumsum(ratio), 0.95) + 1)
     local.effective_components = min(local.effective_components, count)
     validation_matrix = (validation / scale[None, :, None, None]).reshape(len(validation), -1)
@@ -316,66 +402,127 @@ def fit_local_pca(reference: np.ndarray, n_components: int, seed: int) -> LocalP
     return local
 
 
-def noise_and_disks(
-    target: np.ndarray, seed: int, threshold: float
-) -> tuple[np.ndarray, list, list]:
-    mask = target[3] > threshold
-    points = np.argwhere(mask)
-    if not len(points):
+def localized_patch(region: np.ndarray, center: tuple[float, float], count: int) -> np.ndarray:
+    """Grow a connected patch inside one primitive, stopping at an exact pixel count."""
+    points = np.argwhere(region)
+    if len(points) < count:
+        raise ValueError(f"Primitive contains {len(points)} pixels, but erasure needs {count}")
+    center_y, center_x = center
+    start = points[np.argmin(np.sum((points - center) ** 2, axis=1))]
+    queue = [(0.0, int(start[0]), int(start[1]))]
+    queued = {tuple(start)}
+    patch = np.zeros_like(region)
+    removed = 0
+    while queue and removed < count:
+        _, y, x = heapq.heappop(queue)
+        patch[y, x] = True
+        removed += 1
+        for dy, dx in ((-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)):
+            yy, xx = y + dy, x + dx
+            if (
+                0 <= yy < region.shape[0]
+                and 0 <= xx < region.shape[1]
+                and region[yy, xx]
+                and (yy, xx) not in queued
+            ):
+                queued.add((yy, xx))
+                heapq.heappush(queue, ((yy - center_y) ** 2 + (xx - center_x) ** 2, yy, xx))
+    if removed != count:
+        raise ValueError("Primitive is too small or disconnected for this erasure fraction")
+    return patch
+
+
+def primitive_erasure_plan(target: np.ndarray, morphology: str, cfg: Settings) -> dict:
+    from PIL import Image, ImageDraw
+    from scipy.ndimage import label
+
+    mask = target[3] > cfg.alpha_threshold
+    target_count = int(mask.sum())
+    if target_count == 0:
         raise ValueError("Target alpha mask is empty")
-    rng = np.random.default_rng(seed)
-    direction = rng.normal(size=(12, *mask.shape)) * mask
-    center = points[int(rng.integers(len(points)))]
-    yy, xx = np.indices(mask.shape)
-    distance = (yy - center[0]) ** 2 + (xx - center[1]) ** 2
-    radii, counts = np.unique(distance[mask], return_counts=True)
-    area_fractions = np.cumsum(counts) / mask.sum()
-    disks, metadata = [], []
-    for fraction in (0.05, 0.10):
-        index = int(np.argmin(np.abs(area_fractions - fraction)))
-        disk = distance <= radii[index]
-        disks.append(disk)
-        metadata.append(
-            {
-                "requested_target_fraction": fraction,
-                "actual_target_fraction": float((disk & mask).sum() / mask.sum()),
-                "center_yx": center.tolist(),
-                "radius": float(np.sqrt(radii[index])),
-            }
+    scale = cfg.target_size / PRIMITIVE_SOURCE_SIZE[morphology]
+    regions = {}
+    for part, (polygon, center) in PRIMITIVE_REGIONS[morphology].items():
+        image = Image.new("1", (mask.shape[1], mask.shape[0]))
+        ImageDraw.Draw(image).polygon(
+            [(x * scale + cfg.padding, y * scale + cfg.padding) for x, y in polygon], fill=1
         )
-    return direction, disks, metadata
+        region = np.asarray(image, dtype=bool) & mask
+        center_yx = (center[1] * scale + cfg.padding, center[0] * scale + cfg.padding)
+        points = np.argwhere(region)
+        if not len(points):
+            raise ValueError(f"{morphology}/{part}: anatomical annotation misses the target")
+        closest = points[np.argmin(np.sum((points - center_yx) ** 2, axis=1))]
+        components, _ = label(region, structure=np.ones((3, 3)))
+        # Polygon boundaries can catch isolated pixels belonging to an adjacent body part.
+        region = components == components[tuple(closest)]
+        regions[part] = (region, center_yx)
+    fraction = cfg.erase_fraction
+    if fraction is None:
+        fraction = int(regions["leg"][0].sum()) / target_count if morphology == "gecko" else 0.10
+    count = max(1, round(fraction * target_count))
+    plan = {}
+    for part, (region, center_yx) in regions.items():
+        try:
+            patch = localized_patch(region, center_yx, count)
+        except ValueError as error:
+            raise ValueError(f"{morphology}/{part}: {error}; decrease --erase-fraction") from error
+        plan[f"erase_{part}"] = {
+            "mask": patch,
+            "primitive": part,
+            "requested_target_fraction": fraction,
+            "actual_target_fraction": count / target_count,
+            "removed_target_pixels": count,
+            "primitive_target_pixels": int(region.sum()),
+            "removed_primitive_fraction": count / int(region.sum()),
+            "center_yx": list(center_yx),
+        }
+    return plan
 
 
 def perturbations(
-    anchor: torch.Tensor, target: np.ndarray, reference: np.ndarray, seed: int, threshold: float
+    anchor: torch.Tensor,
+    target: np.ndarray,
+    reference: np.ndarray,
+    seed: int,
+    threshold: float,
+    erasure_plan: dict,
+    branches=None,
 ):
+    branches = condition_names(erasure_plan) if branches is None else tuple(branches)
     mask = target[3] > threshold
-    direction, disks, details = noise_and_disks(target, seed, threshold)
+    direction = np.random.default_rng(seed).normal(size=(12, *mask.shape)) * mask
     hidden_scale = np.sqrt(
         np.mean(reference[:, 4:, :, :][:, :, mask].astype(np.float64) ** 2, axis=(0, 2))
     )
-    states = [anchor.clone(), anchor.clone()]
+    states = [anchor.clone()]
     metadata: dict[str, object] = {}
-    for name, amplitude in zip(BRANCHES[2:5], (0.01, 0.05, 0.10), strict=True):
-        delta = amplitude * hidden_scale[:, None, None] * direction
-        state = anchor.clone()
-        state[:, 4:] += torch.as_tensor(delta, dtype=state.dtype, device=state.device)[None]
-        states.append(state)
-        metadata[name] = {
-            "relative_sigma": amplitude,
-            "channel_sigma": (amplitude * hidden_scale).tolist(),
-            "actual_rms_in_target": rms(delta[:, mask]),
-        }
     alive = as_array(anchor)[3] > threshold
-    for name, disk, detail in zip(BRANCHES[5:], disks, details, strict=True):
+    masks = []
+    for name in branches[1:]:
         state = anchor.clone()
-        state[:, :, torch.as_tensor(disk, device=state.device)] = 0
+        if name.startswith("noise_"):
+            amplitude = float(name.removeprefix("noise_").replace("p", "."))
+            delta = amplitude * hidden_scale[:, None, None] * direction
+            state[:, 4:] += torch.as_tensor(delta, dtype=state.dtype, device=state.device)[None]
+            metadata[name] = {
+                "relative_sigma": amplitude,
+                "channel_sigma": (amplitude * hidden_scale).tolist(),
+                "actual_rms_in_target": rms(delta[:, mask]),
+            }
+        else:
+            details = erasure_plan[name]
+            erase_mask = details["mask"]
+            state[:, :, torch.as_tensor(erase_mask, device=state.device)] = 0
+            masks.append(erase_mask)
+            metadata[name] = {
+                **{key: value for key, value in details.items() if key != "mask"},
+                "removed_alive_fraction": float(
+                    (erase_mask & alive).sum() / max(int(alive.sum()), 1)
+                ),
+            }
         states.append(state)
-        metadata[name] = {
-            **detail,
-            "removed_alive_fraction": float((disk & alive).sum() / max(int(alive.sum()), 1)),
-        }
-    return states, metadata, np.stack(disks)
+    return states, metadata, np.stack(masks)
 
 
 def paired_updates(
@@ -385,56 +532,31 @@ def paired_updates(
     system: str,
     cfg: Settings,
     shared_rng,
-    independent_rng,
 ):
     next_states = []
-    next_shared, next_independent = shared_rng, independent_rng
-    for index, state in enumerate(states):
+    next_shared = shared_rng
+    for state in states:
         if state is None:
             next_states.append(None)
             continue
-        restore_rng(independent_rng if index == 1 else shared_rng, state.device)
+        restore_rng(shared_rng, state.device)
         result = update(model, state, reference, system, cfg)
-        if index == 1:
-            next_independent = capture_rng(state.device)
-        else:
-            next_shared = capture_rng(state.device)
+        next_shared = capture_rng(state.device)
         next_states.append(result if bool(torch.isfinite(result).all()) else None)
-    return next_states, next_shared, next_independent
+    return next_states, next_shared
 
 
-def measure(
-    state: np.ndarray,
-    previous: np.ndarray | None,
-    mature: np.ndarray,
-    control: np.ndarray | None,
-    target: np.ndarray,
-    cfg: Settings,
-    pcas: dict,
-):
+def measure(state, control, target, cfg: Settings, local: LocalPCA):
     values = np.full(len(METRICS), np.nan)
-    values[:4] = morphology_metrics(state, target, cfg.alpha_threshold)
-    scores, channel_rows = {}, []
-    for offset, (group, selection) in enumerate(GROUPS.items()):
-        selected = state[selection]
-        delta = selected - mature[selection]
-        speed = np.zeros_like(selected) if previous is None else selected - previous[selection]
-        values[4 + offset] = rms(speed)
-        values[6 + offset] = rms(delta)
-        if control is not None:
-            values[8 + offset] = rms(selected - control[selection])
-            values[10 + offset] = values[8 + offset] / max(rms(mature[selection]), EPS)
-        local_scores, residual, cloud, radius = pcas[group].project(selected)
-        values[12 + offset * 2] = cloud
-        values[13 + offset * 2] = residual
-        values[16 + offset] = radius
-        scores[group] = local_scores
-        channel_rows.append(
-            np.stack(
-                (np.sqrt(np.mean(delta**2, axis=(1, 2))), np.sqrt(np.mean(speed**2, axis=(1, 2))))
-            )
-        )
-    return values, scores, np.concatenate(channel_rows, axis=1)
+    for name, value in zip(
+        MORPHOLOGY_METRICS, morphology_metrics(state, target, cfg.alpha_threshold), strict=True
+    ):
+        values[METRIC_INDEX[name]] = value
+    if control is not None:
+        values[METRIC_INDEX["hidden_pair_rms"]] = rms(state[4:] - control[4:])
+    scores, residual = local.project(state[4:])
+    values[METRIC_INDEX["hidden_pca_residual"]] = residual
+    return values, scores
 
 
 def snapshot_schedule(cfg: Settings) -> list[int]:
@@ -462,14 +584,16 @@ def snapshot_schedule(cfg: Settings) -> list[int]:
 @torch.no_grad()
 def simulate(
     model,
-    target: torch.Tensor,
-    mature: torch.Tensor,
-    system: str,
-    replicate: int,
-    regime: dict,
-    cfg: Settings,
-) -> tuple[dict, dict]:
-    """Keep seven branches in memory; persist projections rather than dense full-state movies."""
+    target,
+    mature,
+    system,
+    replicate,
+    regime,
+    cfg,
+    erasure_plan,
+):
+    """Record hidden projections and selected metrics without changing the paired simulation."""
+    branches = condition_names(erasure_plan)
     target_array, mature_array = as_array(target), as_array(mature)
     seed_nca(cfg.seed + 1_000_000 + replicate, target.device)
     state = mature.clone()
@@ -485,75 +609,51 @@ def simulate(
         if step < cfg.perturb_step:
             state = update(model, state, mature, system, cfg)
     shared_rng = capture_rng(target.device)
-    seed_nca(cfg.seed + 2_000_000 + replicate, target.device)
-    independent_rng = capture_rng(target.device)
     pre_states = np.stack(pre_states)
     reference = pre_states[cfg.reference_start : cfg.perturb_step]
-    pcas = {
-        group: fit_local_pca(reference[:, selection], cfg.pca_components, cfg.seed + replicate)
-        for group, selection in GROUPS.items()
-    }
-    states, perturbation_metadata, disks = perturbations(
-        state, target_array, reference, cfg.seed + 3_000_000 + replicate, cfg.alpha_threshold
+    local = fit_local_pca(reference[:, 4:], cfg.pca_components, cfg.seed + replicate)
+    states, perturbation_metadata, erase_masks = perturbations(
+        state,
+        target_array,
+        reference,
+        cfg.seed + 3_000_000 + replicate,
+        cfg.alpha_threshold,
+        erasure_plan,
+        branches,
     )
-    shape = (len(BRANCHES), cfg.horizon + 1)
+    shape = (len(branches), cfg.horizon + 1)
     curves = np.full((*shape, len(METRICS)), np.nan)
+    control_morphology = np.full((*shape, len(CONTROL_MORPHOLOGY_METRICS)), np.nan)
+    coordinates = np.full((*shape, len(local.components)), np.nan, dtype=np.float32)
     in_target = np.zeros(shape, dtype=bool)
-    in_reference = np.zeros(shape, dtype=bool)
-    channel_curves = np.full((*shape, 2, 16), np.nan, dtype=np.float32)
-    coordinates = {
-        group: np.full((*shape, local.components.shape[0]), np.nan, dtype=np.float32)
-        for group, local in pcas.items()
-    }
+    divergence = np.full(len(branches), -1, dtype=np.int64)
     snap_steps = snapshot_schedule(cfg) if replicate < cfg.snapshot_replicates else []
     snapshots = np.full(
-        (len(BRANCHES), len(snap_steps), 4, *target.shape[-2:]), np.nan, dtype=np.float32
+        (len(branches), len(snap_steps), 4, *target.shape[-2:]), np.nan, dtype=np.float32
     )
     snap_indices = {step: index for index, step in enumerate(snap_steps)}
-    divergence = np.full(len(BRANCHES), -1, dtype=np.int64)
-    windows = analysis_windows(cfg)
-    temporal_variance = np.full((len(BRANCHES), len(windows), 16), np.nan)
-    temporal_variance[:, 0] = reference.astype(np.float64).var(axis=0).mean(axis=(1, 2))
-    window_index = 1
-    running_mean = np.zeros((len(BRANCHES), *mature_array.shape))
-    running_m2 = np.zeros_like(running_mean)
-    sample_counts = np.zeros(len(BRANCHES), dtype=int)
 
-    def record(branch, step, array, previous, control):
-        values, scores, channels = measure(
-            array, previous, mature_array, control, target_array, cfg, pcas
-        )
+    def record(branch, step, array, control):
+        values, scores = measure(array, control, target_array, cfg, local)
         curves[branch, step] = values
-        channel_curves[branch, step] = channels
-        in_target[branch, step] = inside_regime(values, regime)
-        in_reference[branch, step] = all(
-            values[12 + i * 2] <= local.cloud_limit and values[13 + i * 2] <= local.residual_limit
-            for i, local in enumerate(pcas.values())
+        control_morphology[branch, step] = control_morphology_metrics(
+            array, control, cfg.alpha_threshold
         )
-        for group in GROUPS:
-            coordinates[group][branch, step] = scores[group]
+        coordinates[branch, step] = scores
+        in_target[branch, step] = inside_regime(values, regime)
         if step in snap_indices:
             snapshots[branch, snap_indices[step]] = array[:4]
 
     for step in range(cfg.perturb_step):
-        record(
-            0, step, pre_states[step], None if step == 0 else pre_states[step - 1], pre_states[step]
-        )
-    for branch in range(1, len(BRANCHES)):
+        record(0, step, pre_states[step], pre_states[step])
+    for branch in range(1, len(branches)):
         curves[branch, : cfg.perturb_step] = curves[0, : cfg.perturb_step]
-        channel_curves[branch, : cfg.perturb_step] = channel_curves[0, : cfg.perturb_step]
+        control_morphology[branch, : cfg.perturb_step] = control_morphology[0, : cfg.perturb_step]
+        coordinates[branch, : cfg.perturb_step] = coordinates[0, : cfg.perturb_step]
         in_target[branch, : cfg.perturb_step] = in_target[0, : cfg.perturb_step]
-        in_reference[branch, : cfg.perturb_step] = in_reference[0, : cfg.perturb_step]
-        for group in GROUPS:
-            coordinates[group][branch, : cfg.perturb_step] = coordinates[group][
-                0, : cfg.perturb_step
-            ]
         for step, index in snap_indices.items():
             if step < cfg.perturb_step:
                 snapshots[branch, index] = snapshots[0, index]
-
-    previous = [pre_states[-1]] * len(BRANCHES)
-    initial_hidden_distance = []
     for step in range(cfg.perturb_step, cfg.horizon + 1):
         arrays = [None if state is None else as_array(state) for state in states]
         for branch, array in enumerate(arrays):
@@ -561,81 +661,48 @@ def simulate(
                 if divergence[branch] == -1:
                     divergence[branch] = step
                 continue
-            record(branch, step, array, previous[branch], arrays[0])
-            if step > cfg.perturb_step:
-                sample_counts[branch] += 1
-                delta = array - running_mean[branch]
-                running_mean[branch] += delta / sample_counts[branch]
-                running_m2[branch] += delta * (array - running_mean[branch])
-        if step == cfg.perturb_step:
-            initial_hidden_distance = curves[:, step, 8].tolist()
-        if window_index < len(windows) and step == windows[window_index][2]:
-            _, start, stop = windows[window_index]
-            complete = sample_counts == stop - start + 1
-            temporal_variance[complete, window_index] = (
-                running_m2[complete] / (stop - start + 1)
-            ).mean(axis=(2, 3))
-            running_mean.fill(0)
-            running_m2.fill(0)
-            sample_counts.fill(0)
-            window_index += 1
+            record(branch, step, array, arrays[0])
         if step == cfg.horizon or all(state is None for state in states):
             break
-        previous = arrays
-        states, shared_rng, independent_rng = paired_updates(
-            model, states, mature, system, cfg, shared_rng, independent_rng
-        )
-    diagnostics = {}
+        states, shared_rng = paired_updates(model, states, mature, system, cfg, shared_rng)
     payload = {
         "steps": np.arange(cfg.horizon + 1),
-        "branch_names": np.asarray(BRANCHES),
+        "branch_names": np.asarray(branches),
         "metric_names": np.asarray(METRICS),
         "metrics": curves,
-        "channel_metrics": channel_curves,
-        "channel_order": np.asarray([f"H{i}" for i in range(12)] + ["R", "G", "B", "A"]),
-        "channel_temporal_variance": temporal_variance,
-        "variance_channel_order": np.asarray(["R", "G", "B", "A"] + [f"H{i}" for i in range(12)]),
-        "variance_window_names": np.asarray([window[0] for window in windows]),
+        "control_morphology": control_morphology,
+        "hidden_scores": coordinates,
+        "hidden_pca_mean": local.mean,
+        "hidden_pca_components": local.components,
+        "hidden_scale": local.scale,
+        "hidden_variance_ratio": local.variance_ratio,
         "in_target": in_target,
-        "in_reference": in_reference,
         "divergence_step": divergence,
         "snapshot_steps": np.asarray(snap_steps, dtype=np.int64),
         "snapshots": snapshots,
         "mature_state": mature_array.astype(np.float32),
         "pre_pulse_state": pre_states[-1],
-        "erase_masks": disks,
-        "initial_hidden_distance": np.asarray(initial_hidden_distance),
+        "erase_masks": erase_masks,
     }
-    for group, local in pcas.items():
-        payload.update(
-            {
-                f"{group}_scores": coordinates[group],
-                f"{group}_pca_mean": local.mean,
-                f"{group}_pca_components": local.components,
-                f"{group}_scale": local.scale,
-                f"{group}_variance_ratio": local.variance_ratio,
-                f"{group}_reference_scores": local.reference_scores,
-            }
-        )
-        diagnostics[group] = {
-            "cloud_limit": local.cloud_limit,
-            "residual_limit": local.residual_limit,
-            "explained_variance": float(local.variance_ratio.sum()),
-            "components_to_95_or_cap": local.effective_components,
-            "reached_95_percent": bool(local.variance_ratio.sum() >= 0.95),
-            "pre_mean_shift_in_radii": local.mean_shift_in_radii,
-            "pre_speed_ratio": local.speed_ratio if np.isfinite(local.speed_ratio) else None,
-            "approximately_stationary_heuristic": bool(
-                local.mean_shift_in_radii <= 1 and 0.5 <= local.speed_ratio <= 2
-            ),
-        }
     split_step = cfg.reference_start + len(reference) // 2
     return payload, {
         "status": "complete",
         "system": system,
         "replicate": replicate,
         "perturbations": perturbation_metadata,
-        "local_pca": diagnostics,
+        "local_pca": {
+            "hidden": {
+                "residual_limit": local.residual_limit,
+                "explained_variance": float(local.variance_ratio.sum()),
+                "components_to_95_or_cap": local.effective_components,
+                "reached_95_percent": bool(local.variance_ratio.sum() >= 0.95),
+                "pre_mean_shift_in_radii": local.mean_shift_in_radii,
+                "pre_speed_ratio": local.speed_ratio if np.isfinite(local.speed_ratio) else None,
+                "approximately_stationary_heuristic": bool(
+                    local.mean_shift_in_radii <= 1 and 0.5 <= local.speed_ratio <= 2
+                ),
+            }
+        },
         "fit_steps_inclusive": [cfg.reference_start, split_step - 1],
         "validation_steps_inclusive": [split_step, cfg.perturb_step - 1],
         "in_target_before_pulse": bool(
@@ -643,11 +710,97 @@ def simulate(
                 morphology_metrics(pre_states[-1], target_array, cfg.alpha_threshold), regime
             )
         ),
-        "timing": "t=0 is target attainment; t=pulse contains post-pulse state; "
-        "step RMS at the pulse includes the instantaneous perturbation.",
-        "limitations": "Reference stationarity is a heuristic on a short pre-pulse window. "
-        "PCA/FFT and finite return tests do not establish a mathematical attractor.",
+        "timing": "t=0 is target attainment; t=pulse contains the post-pulse state.",
+        "limitations": "Pre-reference stationarity is a short-window heuristic. PCA proximity "
+        "and finite recovery tests do not establish a mathematical attractor.",
     }
+
+
+@torch.no_grad()
+def replay_snapshots(
+    model,
+    target: torch.Tensor,
+    mature: torch.Tensor,
+    system: str,
+    replicate: int,
+    cfg: Settings,
+    expected_pre_pulse: np.ndarray,
+    expected_metrics: np.ndarray,
+    branches,
+    erasure_plan: dict,
+    *,
+    control_metrics: np.ndarray | None = None,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Replay saved trajectories for snapshots and optional stepwise control comparisons."""
+    steps = np.asarray(snapshot_schedule(cfg), dtype=np.int64)
+    indices = {int(step): index for index, step in enumerate(steps)}
+    snapshots = np.full(
+        (len(branches), len(steps), 4, *target.shape[-2:]), np.nan, dtype=np.float32
+    )
+    seed_nca(cfg.seed + 1_000_000 + replicate, target.device)
+    state = mature.clone()
+    reference = []
+    target_array = as_array(target)
+
+    def record(branch, step, array, control):
+        measured = morphology_metrics(array, target_array, cfg.alpha_threshold)
+        saved = expected_metrics[branch, step, : len(MORPHOLOGY_METRICS)]
+        if not np.allclose(measured, saved, rtol=1e-5, atol=1e-6, equal_nan=True):
+            raise ValueError(f"Replayed t={step} differs from saved metrics for {branches[branch]}")
+        if control_metrics is not None:
+            distance = rms(array[4:] - control[4:]) if control is not None else np.nan
+            if not np.isclose(
+                distance,
+                expected_metrics[branch, step, METRIC_INDEX["hidden_pair_rms"]],
+                rtol=1e-5,
+                atol=1e-6,
+                equal_nan=True,
+            ):
+                raise ValueError(f"Paired replay differs for {branches[branch]} at t={step}")
+            control_metrics[branch, step] = control_morphology_metrics(
+                array, control, cfg.alpha_threshold
+            )
+        if step in indices:
+            snapshots[branch, indices[step]] = array[:4]
+
+    for step in range(cfg.perturb_step):
+        if step in indices or control_metrics is not None:
+            array = as_array(state)
+            for branch in range(len(branches)):
+                record(branch, step, array, array)
+        if step >= cfg.reference_start:
+            reference.append(as_array(state).astype(np.float32))
+        state = update(model, state, mature, system, cfg)
+        if not bool(torch.isfinite(state).all()):
+            raise ValueError(f"Non-finite pre-pulse state at t={step + 1}")
+    pre_pulse = as_array(state).astype(np.float32)
+    if not np.array_equal(pre_pulse, expected_pre_pulse):
+        raise ValueError(
+            f"Replayed t={cfg.perturb_step} differs from the saved run; use the original checkpoint and device"
+        )
+    shared_rng = capture_rng(target.device)
+    states, _, _ = perturbations(
+        state,
+        as_array(target),
+        np.stack(reference),
+        cfg.seed + 3_000_000 + replicate,
+        cfg.alpha_threshold,
+        erasure_plan,
+        branches,
+    )
+    for step in range(cfg.perturb_step, cfg.horizon + 1):
+        if step in indices or control_metrics is not None:
+            arrays = [None if state is None else as_array(state) for state in states]
+            for branch, array in enumerate(arrays):
+                if array is None:
+                    if np.isfinite(expected_metrics[branch, step, : len(MORPHOLOGY_METRICS)]).any():
+                        raise ValueError(f"Replayed {branches[branch]} diverged early at t={step}")
+                    continue
+                record(branch, step, array, arrays[0])
+        if step == cfg.horizon or all(branch_state is None for branch_state in states):
+            break
+        states, shared_rng = paired_updates(model, states, mature, system, cfg, shared_rng)
+    return steps, snapshots
 
 
 def train(args) -> None:
@@ -703,6 +856,7 @@ def run(args) -> None:
                 "calibration_replicates",
                 "snapshot_replicates",
                 "pca_components",
+                "erase_fraction",
             )
         }
     )
@@ -719,6 +873,9 @@ def run(args) -> None:
             if not path.is_file():
                 raise FileNotFoundError(f"Missing {path}. Train the corresponding system first.")
     for morphology in args.morphologies:
+        target_path = Path(args.data_dir) / f"{morphology}.png"
+        target = load_distill_target(target_path, cfg.target_size, cfg.padding, device)
+        erasure_plan = primitive_erasure_plan(as_array(target), morphology, cfg)
         folder = Path(args.output_root) / morphology / args.checkpoint_tag
         folder.mkdir(parents=True, exist_ok=True)
         paths = {
@@ -727,9 +884,18 @@ def run(args) -> None:
             )
             for system in SYSTEMS
         }
-        target_path = Path(args.data_dir) / f"{morphology}.png"
         manifest = {
-            "protocol": "persistent_vs_mature_restore_v1",
+            "protocol": (
+                "persistent_vs_mature_restore_primitive_erasure_v4"
+                if morphology == "butterfly"
+                else "persistent_vs_mature_restore_primitive_erasure_v3"
+            ),
+            "recorded_metrics": list(METRICS),
+            "branch_names": list(condition_names(erasure_plan)),
+            "erasure_regions": {
+                name: {key: value for key, value in detail.items() if key != "mask"}
+                for name, detail in erasure_plan.items()
+            },
             "settings": asdict(cfg),
             "morphology": morphology,
             "checkpoint_tag": args.checkpoint_tag,
@@ -745,9 +911,18 @@ def run(args) -> None:
         }
         manifest_path = folder / "manifest.json"
         if manifest_path.exists():
-            if json.loads(manifest_path.read_text()) != manifest:
+            recorded = json.loads(manifest_path.read_text())
+            # The script hash includes plotting code; simulation changes require a protocol bump.
+            changed = sorted(
+                key
+                for key in manifest
+                if key != "implementation_sha256" and recorded.get(key) != manifest.get(key)
+            )
+            if changed:
                 raise ValueError(
-                    f"Protocol/inputs/environment changed: choose a new output root ({folder})"
+                    f"Protocol/inputs/environment changed ({', '.join(changed)}). "
+                    f"Use the original run options to resume {folder}, "
+                    "or choose a different --output-root for the new protocol."
                 )
         else:
             if any(folder.iterdir()):
@@ -759,14 +934,17 @@ def run(args) -> None:
             )
             for system, path in paths.items()
         }
-        target = load_distill_target(target_path, cfg.target_size, cfg.padding, device)
+        plot_erasure_plan(as_array(target), erasure_plan, folder / "primitive_erase_masks.png")
         regime_path = folder / "calibration.json"
         if regime_path.exists():
             regime = json.loads(regime_path.read_text())
         else:
             regime, records = calibrate(models, target, cfg)
             save_npz(
-                folder / "calibration_metrics.npz", records=records, systems=np.asarray(SYSTEMS)
+                folder / "calibration_metrics.npz",
+                records=records,
+                systems=np.asarray(SYSTEMS),
+                metric_names=np.asarray(MORPHOLOGY_METRICS),
             )
             save_json(regime_path, regime)
         for system, model in models.items():
@@ -782,6 +960,7 @@ def run(args) -> None:
                     ):
                         print(f"Already recorded: {morphology}/{system}/{replicate}", flush=True)
                         continue
+                require_disk_space(result_dir / "trajectories.npz")
                 print(
                     f"Recording {morphology}/{system}, replicate {replicate + 1}/{args.replicates}",
                     flush=True,
@@ -802,7 +981,7 @@ def run(args) -> None:
                     continue
                 with threadpool_limits(limits=1):
                     payload, metadata = simulate(
-                        model, target, mature, system, replicate, regime, cfg
+                        model, target, mature, system, replicate, regime, cfg, erasure_plan
                     )
                 metadata.update(
                     {
@@ -811,7 +990,6 @@ def run(args) -> None:
                         "mature_step": mature_step,
                         "development_seed": cfg.seed + replicate,
                         "continuation_seed": cfg.seed + 1_000_000 + replicate,
-                        "independent_seed": cfg.seed + 2_000_000 + replicate,
                         "perturbation_seed": cfg.seed + 3_000_000 + replicate,
                     }
                 )
@@ -821,254 +999,79 @@ def run(args) -> None:
                 print(f"Saved {result_dir}", flush=True)
 
 
-def analysis_windows(cfg: Settings) -> list[tuple[str, int, int]]:
-    windows = [("pre_pulse", cfg.reference_start, cfg.perturb_step - 1)]
-    boundaries = sorted(
-        {
-            point
-            for point in (1000, 2000, 4000, 6000, 8000, cfg.horizon)
-            if cfg.perturb_step < point <= cfg.horizon
-        }
-    )
-    start = cfg.perturb_step + 1
-    for stop in boundaries:
-        windows.append((f"t{start}_{stop}", start, stop))
-        start = stop + 1
-    return windows
-
-
-def spectral_diagnostics(scores: np.ndarray, segment_length: int) -> tuple[dict, dict]:
-    from scipy import signal
-
-    centered = signal.detrend(scores.astype(np.float64), axis=0, type="linear")
-    window = signal.windows.hann(len(centered), sym=False)
-    spectrum = np.abs(np.fft.rfft(centered * window[:, None], axis=0)) ** 2
-    power = spectrum.sum(axis=1) / max(float(np.sum(window**2)), EPS)
-    frequency = np.fft.rfftfreq(len(centered), d=1.0)
-    welch_frequency, welch_power = signal.welch(
-        scores,
-        fs=1.0,
-        window="hann",
-        nperseg=min(segment_length, len(scores)),
-        noverlap=min(segment_length, len(scores)) // 2,
-        detrend="linear",
-        axis=0,
-    )
-    welch_power = welch_power.sum(axis=1)
-    non_dc = power[1:]
-    total = float(non_dc.sum())
-    distribution = non_dc / total if total > EPS else np.zeros_like(non_dc)
-    dominant = int(np.argmax(non_dc)) + 1 if total > EPS else None
-    peaks = signal.find_peaks(distribution, height=0.05)[0]
-    # A boundary-bin maximum need not be a resolved oscillation.
-    period = 1 / frequency[dominant] if dominant is not None else float("nan")
-    summary = {
-        "detrended_variance": float(np.var(centered, axis=0).sum()),
-        "dominant_frequency": float(frequency[dominant]) if dominant else float("nan"),
-        "dominant_period": float(period),
-        "dominant_power_fraction": float(distribution.max()) if distribution.size else 0.0,
-        "dominant_observed_cycles": float(len(scores) / period),
-        "at_least_three_cycles": bool(dominant and len(scores) / period >= 3),
-        "spectral_entropy": float(
-            -np.sum(distribution * np.log(distribution + EPS)) / np.log(max(len(distribution), 2))
-        ),
-        "top5_power_fraction": float(np.sort(distribution)[-5:].sum()),
-        "peaks_above_5_percent": len(peaks),
-        "fft_resolution": 1 / len(scores),
-        "welch_segment_length": min(segment_length, len(scores)),
-    }
-    return summary, {
-        "fft_frequency": frequency,
-        "fft_power": power,
-        "welch_frequency": welch_frequency,
-        "welch_power": welch_power,
-    }
-
-
-def geometric_diagnostics(scores: np.ndarray, steps: np.ndarray) -> tuple[dict, dict]:
-    from scipy.spatial.distance import cdist
-
-    mean = scores.mean(axis=0)
-    radius = rms(scores - mean)
-    quarter = max(len(scores) // 4, 2)
-    start_speed = rms(np.diff(scores[:quarter], axis=0))
-    end_speed = rms(np.diff(scores[-quarter:], axis=0))
-    lags = np.arange(1, min(500, len(scores) // 4) + 1)
-    distances = np.asarray([rms(scores[lag:] - scores[:-lag]) for lag in lags])
-    relative = distances / max(radius, EPS)
-    valid_lags = np.flatnonzero(lags >= 20)
-    best = int(valid_lags[np.argmin(relative[valid_lags])]) if valid_lags.size else None
-    indices = np.unique(np.linspace(0, len(scores) - 1, min(240, len(scores)), dtype=int))
-    recurrence = cdist(scores[indices], scores[indices]) / np.sqrt(scores.shape[1])
-    off_diagonal = np.abs(steps[indices, None] - steps[None, indices]) > 20
-    robust_diameter = (
-        float(np.quantile(recurrence[off_diagonal], 0.95)) if off_diagonal.any() else 0.0
-    )
-    threshold = 0.1 * robust_diameter
-    rate = (
-        float(np.mean(recurrence[off_diagonal] <= threshold))
-        if off_diagonal.any()
-        else float("nan")
-    )
-    summary = {
-        "pca_radius": radius,
-        "pca_step_rms": rms(np.diff(scores, axis=0)),
-        "pca_start_speed": start_speed,
-        "pca_end_speed": end_speed,
-        "pca_end_start_speed_ratio": end_speed / max(start_speed, EPS),
-        "pca_mean_shift_in_radii": rms(
-            scores[-quarter:].mean(axis=0) - scores[:quarter].mean(axis=0)
-        )
-        / max(radius, EPS),
-        "best_return_lag": int(lags[best]) if best is not None else "",
-        "best_relative_return_distance": float(relative[best])
-        if best is not None
-        else float("nan"),
-        "recurrence_rate": rate,
-        "recurrence_threshold": threshold,
-        "recurrence_theiler_steps": 20,
-        "recurrence_robust_diameter": robust_diameter,
-    }
-    return summary, {
-        "return_lags": lags,
-        "return_distances": distances,
-        "relative_return_distances": relative,
-        "recurrence_distance": recurrence,
-        "recurrence_steps": steps[indices],
-    }
-
-
-def window_rows(payload: dict, cfg: Settings) -> tuple[list[dict], dict]:
-    rows, details = [], {}
-    metrics, steps = payload["metrics"], payload["steps"]
-    for branch, name in enumerate(BRANCHES):
-        for group_index, group in enumerate(GROUPS):
-            for window_index, (label, start, stop) in enumerate(analysis_windows(cfg)):
-                selected = (steps >= start) & (steps <= stop)
-                scores = payload[f"{group}_scores"][branch, selected].astype(np.float64)
-                finite = np.isfinite(scores).all(axis=1)
-                complete = bool(finite.all() and len(scores) >= 8)
-                row = {
-                    "branch": name,
-                    "group": group,
-                    "window": label,
-                    "start": start,
-                    "stop": stop,
-                    "complete": complete,
-                    "n_finite": int(finite.sum()),
-                }
-                if complete:
-                    spectral, spectrum = spectral_diagnostics(
-                        scores, min(128, cfg.perturb_step - cfg.reference_start)
-                    )
-                    geometry, recurrence = geometric_diagnostics(scores, steps[selected])
-                    row.update(spectral)
-                    row.update(geometry)
-                    row["full_group_step_rms"] = float(
-                        metrics[branch, selected, 4 + group_index].mean()
-                    )
-                    row["mean_cell_temporal_variance"] = float(
-                        payload["channel_temporal_variance"][
-                            branch, window_index, GROUPS[group]
-                        ].mean()
-                    )
-                    row["target_fraction"] = float(payload["in_target"][branch, selected].mean())
-                    row["reference_fraction"] = float(
-                        payload["in_reference"][branch, selected].mean()
-                    )
-                    prefix = f"{name}__{group}__{label}__"
-                    details.update(
-                        {prefix + key: value for key, value in {**spectrum, **recurrence}.items()}
-                    )
-                rows.append(row)
-    return rows, details
-
-
-def recovery_rows(payload: dict, metadata: dict, windows: list[dict], cfg: Settings) -> list[dict]:
-    rows = []
+def recovery_rows(payload: dict, metadata: dict, cfg: Settings) -> list[dict]:
     pulse = cfg.perturb_step
-    last_start = max(pulse + 1, cfg.horizon - 199)
-    reference_ok = all(
-        d["approximately_stationary_heuristic"] for d in metadata["local_pca"].values()
+    late = slice(max(pulse + 1, cfg.horizon - 199), cfg.horizon + 1)
+    metrics = payload["metrics"]
+    local = metadata["local_pca"]["hidden"]
+    reference_stationary = bool(local["approximately_stationary_heuristic"])
+    morphology_indices = [METRIC_INDEX[name] for name in MORPHOLOGY_METRICS]
+    control_finite = bool(
+        payload["divergence_step"][0] < 0
+        and np.isfinite(metrics[0, late][:, morphology_indices]).all()
     )
-    late_label = analysis_windows(cfg)[-1][0]
-    for branch, name in enumerate(BRANCHES):
+    pre_target = bool(payload["in_target"][0, pulse])
+    rows = []
+    for branch, name in enumerate(payload["branch_names"]):
         target = payload["in_target"][branch]
         flags = target[pulse:]
         exits = np.flatnonzero(~flags)
         first_exit = int(exits[0]) if exits.size else None
-        if first_exit is None:
-            recovery = 0
-        else:
+        recovery = None
+        if first_exit is not None:
             returned = first_sustained(flags[first_exit + 1 :], cfg.recovery_patience)
-            recovery = None if returned is None else first_exit + 1 + returned
-        initial_distance = float(payload["metrics"][branch, pulse, 8])
-        ratios = payload["metrics"][branch, pulse:, 8] / max(initial_distance, EPS)
-        pair_return = first_sustained(np.isfinite(ratios) & (ratios <= 0.1), cfg.recovery_patience)
-        if initial_distance <= EPS:
-            pair_return = None
+            if returned is not None:
+                recovery = first_exit + 1 + returned
         divergence = int(payload["divergence_step"][branch])
-        sustained = bool(
-            recovery is not None and divergence < 0 and target[last_start:].mean() >= 0.95
+        morphology_finite = bool(
+            divergence < 0 and np.isfinite(metrics[branch, late][:, morphology_indices]).all()
         )
-        local_fraction = float(payload["in_reference"][branch, last_start:].mean())
-        baseline_local = float(payload["in_reference"][0, last_start:].mean())
-        late = [row for row in windows if row["branch"] == name and row["window"] == late_label]
-        bounded_candidate = len(late) == 2 and all(
-            row["complete"]
-            and row["pca_mean_shift_in_radii"] <= 1
-            and (0.5 <= row["pca_end_start_speed_ratio"] <= 2 or row["pca_step_rms"] < EPS)
-            for row in late
+        target_fraction = float(target[late].mean())
+        never_left = bool(pre_target and first_exit is None)
+        recovered = bool(
+            pre_target and recovery is not None and morphology_finite and target_fraction >= 0.95
         )
-        if divergence >= 0:
-            interpretation = "numerical_divergence"
-        elif name in BRANCHES[:2]:
-            interpretation = "unperturbed_comparator"
-        elif not sustained:
-            interpretation = "no_sustained_morphological_recovery"
-        elif not metadata["in_target_before_pulse"]:
-            interpretation = "target_reached_after_pulse_but_pre_pulse_morphology_failed"
-        elif not reference_ok or baseline_local < 0.9:
-            interpretation = "morphology_recovered_reference_not_stationary"
-        elif local_fraction >= 0.9:
-            interpretation = "compatible_with_pre_pulse_regime"
-        elif bounded_candidate:
-            interpretation = "different_late_regime_candidate_requires_followup"
-        else:
-            interpretation = "morphology_recovered_dynamics_unresolved"
-        final_values = payload["metrics"][branch, -1]
-        independent_scale = payload["metrics"][1, last_start:, 8]
-        finite_scale = independent_scale[np.isfinite(independent_scale)]
+        distance = metrics[branch, :, METRIC_INDEX["hidden_pair_rms"]]
+        initial = float(distance[pulse])
+        pair_eligible = bool(
+            pre_target and control_finite and np.isfinite(initial) and initial > EPS
+        )
+        close = np.isfinite(distance) & (distance <= 0.1 * initial)
+        pair_return = (
+            first_sustained(close[pulse:], cfg.recovery_patience) if pair_eligible else None
+        )
+        finite_distance = distance[late][np.isfinite(distance[late])]
         rows.append(
             {
-                "branch": name,
-                "in_target_before_pulse": metadata["in_target_before_pulse"],
-                "reference_stationary_heuristic": reference_ok,
-                "first_target_exit_delay": "" if first_exit is None else first_exit,
-                "first_recovery_delay": "" if recovery is None else recovery,
-                "recovery_observed": recovery is not None,
-                "sustained_target_at_horizon": sustained,
-                "never_left_target": bool(flags.all()),
-                "relapse_after_recovery": bool(recovery is not None and not flags[recovery:].all()),
-                "time_to_90_percent_hidden_distance_reduction": ""
-                if pair_return is None
-                else pair_return,
-                "recovery_followup_steps": cfg.horizon - pulse,
-                "last_200_target_fraction": float(target[last_start:].mean()),
-                "last_200_reference_fraction": local_fraction,
-                "final_target_mse": float(final_values[0]),
-                "final_target_region_mse": float(final_values[1]),
-                "final_alpha_iou": float(final_values[2]),
-                "final_area_ratio": float(final_values[3]),
-                "final_hidden_pair_rms": float(final_values[8]),
-                "final_rgba_pair_rms": float(final_values[9]),
-                "independent_control_late_hidden_distance_q95": float(
-                    np.quantile(finite_scale, 0.95)
-                )
-                if finite_scale.size
+                "branch": str(name),
+                "in_target_before_pulse": pre_target,
+                "reference_stationary_heuristic": reference_stationary,
+                "reference_explained_variance": local["explained_variance"],
+                "reference_reached_95_percent": local["reached_95_percent"],
+                "first_target_exit_delay": first_exit if first_exit is not None else "",
+                "first_morphology_recovery_delay": recovery if recovery is not None else "",
+                "morphology_never_left_target": never_left,
+                "morphology_recovered_after_exit": recovered,
+                "morphology_retained_or_recovered": bool(
+                    morphology_finite and (never_left or recovered)
+                ),
+                "last_200_target_fraction": target_fraction,
+                "paired_hidden_return_eligible": pair_eligible,
+                "first_paired_hidden_return_delay": pair_return if pair_return is not None else "",
+                "paired_hidden_return": bool(
+                    pair_eligible
+                    and divergence < 0
+                    and np.isfinite(distance[late]).all()
+                    and pair_return is not None
+                    and close[late].mean() >= 0.95
+                ),
+                "last_200_hidden_pair_rms": float(np.median(finite_distance))
+                if finite_distance.size
                 else float("nan"),
-                "numerical_divergence_step": "" if divergence < 0 else divergence,
-                "interpretation": interpretation,
+                "final_target_mse": float(metrics[branch, -1, METRIC_INDEX["target_mse"]]),
+                "final_alpha_iou": float(metrics[branch, -1, METRIC_INDEX["alpha_iou"]]),
+                "final_hidden_pair_rms": float(distance[-1]),
+                "numerical_divergence_step": divergence if divergence >= 0 else "",
             }
         )
     return rows
@@ -1097,88 +1100,124 @@ def wilson(successes: int, count: int) -> tuple[float, float]:
     return float(center - half), float(center + half)
 
 
-def aggregate(rows: list[dict], bootstrap_samples: int, seed: int) -> tuple[list[dict], list[dict]]:
+def aggregate(rows: list[dict], bootstrap_samples: int, seed: int):
+    from scipy.stats import binomtest
+
+    endpoints = {
+        "morphology_retained_or_recovered": "in_target_before_pulse",
+        "morphology_never_left_target": "in_target_before_pulse",
+        "morphology_recovered_after_exit": "exited_target",
+        "paired_hidden_return": "paired_hidden_return_eligible",
+    }
+    rows = [
+        {
+            **row,
+            "exited_target": bool(
+                row["in_target_before_pulse"] and not row["morphology_never_left_target"]
+            ),
+        }
+        for row in rows
+    ]
     summaries, comparisons = [], []
     rng = np.random.default_rng(seed)
-    for system in SYSTEMS:
-        for branch in BRANCHES:
-            selected = [row for row in rows if row["system"] == system and row["branch"] == branch]
-            eligible = [row for row in selected if row["in_target_before_pulse"]]
-            successes = sum(row["sustained_target_at_horizon"] for row in eligible)
-            low, high = wilson(successes, len(eligible))
-            delays = [
-                row["first_recovery_delay"]
-                for row in eligible
-                if row["recovery_observed"] and not row["never_left_target"]
-            ]
-            summaries.append(
+    branches = tuple(dict.fromkeys(row["branch"] for row in rows))
+    for branch in branches:
+        for endpoint, eligibility in endpoints.items():
+            by_system = {}
+            for system in SYSTEMS:
+                selected = [r for r in rows if r["system"] == system and r["branch"] == branch]
+                eligible = [r for r in selected if r[eligibility]]
+                by_system[system] = {r["replicate"]: r for r in eligible}
+                successes = sum(bool(r[endpoint]) for r in eligible)
+                low, high = wilson(successes, len(eligible))
+                delays = [
+                    r["first_morphology_recovery_delay"]
+                    for r in eligible
+                    if r["morphology_recovered_after_exit"]
+                ]
+                summaries.append(
+                    {
+                        "system": system,
+                        "branch": branch,
+                        "endpoint": endpoint,
+                        "n_recorded": len(selected),
+                        "n_eligible": len(eligible),
+                        "n_numerical_failures": sum(
+                            r["numerical_divergence_step"] != "" for r in eligible
+                        ),
+                        "successes": successes,
+                        "fraction": successes / len(eligible) if eligible else float("nan"),
+                        "ci95_low": low,
+                        "ci95_high": high,
+                        "median_recovery_delay_after_exit": float(np.median(delays))
+                        if delays and endpoint.startswith("morphology_")
+                        else "",
+                        "n_recovered_delays": len(delays)
+                        if endpoint.startswith("morphology_")
+                        else "",
+                    }
+                )
+            pairs = sorted(by_system[SYSTEMS[0]].keys() & by_system[SYSTEMS[1]].keys())
+            if not pairs:
+                continue
+            delta = np.asarray(
+                [
+                    int(by_system[SYSTEMS[1]][i][endpoint])
+                    - int(by_system[SYSTEMS[0]][i][endpoint])
+                    for i in pairs
+                ]
+            )
+            boot = np.empty(bootstrap_samples)
+            for start in range(0, bootstrap_samples, 500):
+                indices = rng.integers(
+                    len(delta), size=(min(500, bootstrap_samples - start), len(delta))
+                )
+                boot[start : start + len(indices)] = delta[indices].mean(axis=1)
+            positive, negative = int((delta > 0).sum()), int((delta < 0).sum())
+            comparisons.append(
                 {
-                    "system": system,
                     "branch": branch,
-                    "n_recorded": len(selected),
-                    "n_pre_pulse_target": len(eligible),
-                    "sustained_recoveries": successes,
-                    "n_never_left_target": sum(row["never_left_target"] for row in eligible),
-                    "recovery_fraction": successes / len(eligible) if eligible else float("nan"),
-                    "recovery_ci95_low": low,
-                    "recovery_ci95_high": high,
-                    "median_delay_among_recovered_after_exit": float(np.median(delays))
-                    if delays
-                    else "",
-                    "n_without_observed_recovery": sum(
-                        not row["recovery_observed"] for row in eligible
-                    ),
+                    "endpoint": endpoint,
+                    "n_matched_evaluation_seeds": len(pairs),
+                    "growing_minus_persistent_fraction": float(delta.mean()),
+                    "paired_bootstrap_ci95_low": float(np.quantile(boot, 0.025)),
+                    "paired_bootstrap_ci95_high": float(np.quantile(boot, 0.975)),
+                    "mcnemar_exact_p_value": float(binomtest(positive, positive + negative).pvalue)
+                    if positive + negative
+                    else 1.0,
+                    "bootstrap_samples": bootstrap_samples,
                 }
             )
-    for branch in BRANCHES:
-        persistent = {
-            row["replicate"]: row
-            for row in rows
-            if row["system"] == SYSTEMS[0]
-            and row["branch"] == branch
-            and row["in_target_before_pulse"]
-        }
-        restored = {
-            row["replicate"]: row
-            for row in rows
-            if row["system"] == SYSTEMS[1]
-            and row["branch"] == branch
-            and row["in_target_before_pulse"]
-        }
-        pairs = sorted(persistent.keys() & restored.keys())
-        if not pairs:
-            continue
-        delta = np.asarray(
-            [
-                int(restored[i]["sustained_target_at_horizon"])
-                - int(persistent[i]["sustained_target_at_horizon"])
-                for i in pairs
-            ]
+    order = sorted(range(len(comparisons)), key=lambda i: comparisons[i]["mcnemar_exact_p_value"])
+    adjusted = 0.0
+    for rank, index in enumerate(order):
+        adjusted = max(
+            adjusted, min(1.0, (len(order) - rank) * comparisons[index]["mcnemar_exact_p_value"])
         )
-        boot = np.empty(bootstrap_samples)
-        for start in range(0, bootstrap_samples, 500):
-            count = min(500, bootstrap_samples - start)
-            indices = rng.integers(len(delta), size=(count, len(delta)))
-            boot[start : start + count] = delta[indices].mean(axis=1)
-        comparisons.append(
-            {
-                "branch": branch,
-                "n_matched_evaluation_seeds": len(pairs),
-                "growing_minus_persistent_recovery_fraction": float(delta.mean()),
-                "paired_bootstrap_ci95_low": float(np.quantile(boot, 0.025)),
-                "paired_bootstrap_ci95_high": float(np.quantile(boot, 0.975)),
-                "bootstrap_samples": bootstrap_samples,
-                "inference_scope": "This checkpoint pair only; rollout seeds are not independent trainings",
-            }
-        )
+        comparisons[index]["p_value_holm_within_morphology_checkpoint"] = adjusted
     return summaries, comparisons
 
 
 def analyze(args) -> None:
+    regime = {
+        "target_mse_max": getattr(args, "target_mse_max", 0.001),
+        "alpha_iou_min": getattr(args, "target_iou_min", 0.95),
+        "area_ratio_min": getattr(args, "target_area_min", 0.9),
+        "area_ratio_max": getattr(args, "target_area_max", 1.1),
+    }
+    if not (
+        np.isfinite(list(regime.values())).all()
+        and regime["target_mse_max"] > 0
+        and 0 <= regime["alpha_iou_min"] <= 1
+        and 0 < regime["area_ratio_min"] <= regime["area_ratio_max"]
+    ):
+        raise ValueError("Invalid morphology evaluation thresholds")
     found = False
     for morphology, folder in result_folders(args):
         found = True
         cfg = Settings(**json.loads((folder / "manifest.json").read_text())["settings"])
+        output = folder / "analysis"
+        output.mkdir(exist_ok=True)
         rows, exclusions = [], []
         for system in SYSTEMS:
             for result_dir in sorted((folder / system).glob("replicate_*")):
@@ -1195,13 +1234,8 @@ def analyze(args) -> None:
                         }
                     )
                     continue
-                with np.load(result_dir / "trajectories.npz", allow_pickle=False) as archive:
-                    payload = {key: archive[key] for key in archive.files}
-                windows, details = window_rows(payload, cfg)
-                recovered = recovery_rows(payload, metadata, windows, cfg)
-                write_csv(result_dir / "window_metrics.csv", windows)
-                write_csv(result_dir / "recovery.csv", recovered)
-                save_npz(result_dir / "window_diagnostics.npz", **details)
+                payload = load_payload(result_dir)
+                payload["in_target"] = inside_regime(payload["metrics"], regime)
                 rows.extend(
                     {
                         "morphology": morphology,
@@ -1210,40 +1244,127 @@ def analyze(args) -> None:
                         "replicate": metadata["replicate"],
                         **row,
                     }
-                    for row in recovered
+                    for row in recovery_rows(payload, metadata, cfg)
                 )
                 print(f"Analyzed {result_dir}", flush=True)
+        save_json(output / "exclusions.json", exclusions)
         if not rows:
-            save_json(folder / "exclusions.json", exclusions)
-            print(f"No completed, eligible trajectories in {folder}", flush=True)
+            print(f"No completed trajectories in {folder}", flush=True)
             continue
         summaries, comparisons = aggregate(rows, args.bootstrap_samples, cfg.seed + 4_000_000)
-        write_csv(folder / "per_run_metrics.csv", rows)
-        write_csv(folder / "condition_metrics.csv", summaries)
-        write_csv(folder / "matched_system_comparison.csv", comparisons)
-        save_json(folder / "exclusions.json", exclusions)
+        write_csv(output / "recovery_by_replica.csv", rows)
+        write_csv(output / "recovery_summary.csv", summaries)
+        write_csv(output / "paired_model_comparison.csv", comparisons)
         save_json(
-            folder / "analysis_settings.json",
+            output / "analysis_settings.json",
             {
-                "windows_inclusive": analysis_windows(cfg),
-                "sample_interval": 1,
-                "pca_fit": "First half of pre-pulse reference, each replica/model separately",
-                "pca_validation": "Second temporal half; q99 cloud/residual bounds; autocorrelated observations",
-                "pre_stationarity": "Diagnostic: mean shift <= 1 radius and speed ratio 0.5-2; not a statistical test",
-                "spectra": "Linear detrending, Hann, multicomponent summed FFT power and Welch PSD",
-                "welch_segment_length": min(128, cfg.perturb_step - cfg.reference_start),
-                "recurrence": "PCA-space distance; threshold=0.1*q95 pair distance, exclude |lag|<=20",
-                "morphology_recovery": f"After first target exit: {cfg.recovery_patience} consecutive target states; delay measured from pulse; final 200 >=95% in target. Never-exited trajectories counted separately and included in target-retention/recovery fraction.",
-                "regime_compatibility": "Final 200 >=90% inside pre-reference geometric envelope, including PCA residual",
-                "pair_return": f"{cfg.recovery_patience} consecutive samples with hidden distance <=10% of initial perturbation distance",
-                "temporal_variance": "Population variance over time at each cell/channel, averaged over the entire spatial grid; no pooling",
-                "population": "Morphologies and checkpoint tags analyzed separately; paired bootstrap over matching rollout IDs",
+                "metrics": list(METRICS),
+                "morphology_evaluation": regime,
+                "morphology_definition": "Raw RGBA MSE over the full grid; alpha > 0.1 for IoU and area. "
+                "All three thresholds must pass. Development calibration is unchanged.",
+                "morphology_recovery": f"After first exit: {cfg.recovery_patience} consecutive target states "
+                "and >=95% of final 200 states in target. Never-exited trajectories are reported separately.",
+                "hidden_pair_return": f"Absolute hidden RMS <=10% of initial pulse distance for "
+                f"{cfg.recovery_patience} consecutive steps and >=95% of final 200. Undefined for zero initial "
+                "distance, as in the unperturbed control.",
+                "hidden_pca": "Same hidden-only PCA for every branch of each model/replica. First temporal "
+                "half fits PCA/scales; second half sets a q99 residual threshold for projection diagnostics. "
+                "Residual and explained variance are not used to classify latent-regime recovery.",
+                "reference_stationarity": "Pre-reference mean shift <=1 radius and speed ratio 0.5-2. "
+                "These short-window checks are heuristics, not hypothesis tests.",
+                "recovery_time": "Delay from pulse, conditional on observed sustained recovery after exit; "
+                "unrecovered trajectories are counted, not assigned zero recovery time.",
+                "uncertainty": "95% Wilson intervals over endpoint-eligible rollout replicas; numerical "
+                "failures are nonreturns. Paired bootstrap and exact McNemar on common eligible IDs; "
+                "Holm correction across binary comparisons within this morphology/checkpoint pair.",
                 "bootstrap_samples": args.bootstrap_samples,
-                "classification": "Operational descriptors only; alternate regime candidates require longer observation and re-perturbation",
+                "scope": "One checkpoint pair; rollout replicas are not independent trainings. Morphologies "
+                "are not pooled. Raw latent distances may differ in scale across trained models.",
+                "figures": "Medians and IQR of finite replicas; missing/numerically diverged values are not "
+                "imputed. PCA geometry alone does not prove an attractor or latent-regime recovery.",
             },
         )
     if not found:
         raise FileNotFoundError("No Experiment 2 manifests found under the requested output root")
+
+
+def load_payload(result_dir: Path) -> dict:
+    """Read retained conditions and metrics from both current and older archives."""
+    with np.load(result_dir / "trajectories.npz", allow_pickle=False) as archive:
+        names = archive["metric_names"].tolist()
+        missing = set(METRICS) - set(names)
+        if missing:
+            raise ValueError(f"{result_dir}: missing metrics {sorted(missing)}")
+        payload = {
+            "metrics": archive["metrics"][..., [names.index(name) for name in METRICS]],
+            "metric_names": np.asarray(METRICS),
+        }
+        for key in (
+            "steps",
+            "branch_names",
+            "hidden_scores",
+            "hidden_variance_ratio",
+            "divergence_step",
+            "snapshot_steps",
+            "snapshots",
+            "pre_pulse_state",
+            "mature_state",
+            "erase_masks",
+            "control_morphology",
+        ):
+            if key in archive:
+                payload[key] = archive[key]
+    indices = retained_branch_indices(payload["branch_names"])
+    for key in (
+        "branch_names",
+        "metrics",
+        "hidden_scores",
+        "divergence_step",
+        "snapshots",
+        "control_morphology",
+    ):
+        if key in payload:
+            payload[key] = payload[key][indices]
+    return payload
+
+
+def load_control_comparison(result_dir, payload):
+    if "control_morphology" in payload:
+        values = payload["control_morphology"]
+    else:
+        path = result_dir / "morphology_control_comparison.npz"
+        if not path.exists():
+            return None
+        with np.load(path, allow_pickle=False) as archive:
+            if (
+                str(archive["source_sha256"]) != file_sha256(result_dir / "trajectories.npz")
+                or not np.array_equal(archive["steps"], payload["steps"])
+                or not np.array_equal(archive["branch_names"], payload["branch_names"])
+                or tuple(archive["metric_names"]) != CONTROL_MORPHOLOGY_METRICS
+            ):
+                raise ValueError(f"Control comparison does not match the saved run: {path}")
+            values = archive["metrics"]
+    expected = (*payload["metrics"].shape[:2], len(CONTROL_MORPHOLOGY_METRICS))
+    if values.shape != expected:
+        raise ValueError(f"Invalid control comparison shape in {result_dir}")
+    return values
+
+
+def select_replicas(directories: list[Path]) -> list[Path]:
+    """Use the same selected rollout for every perturbation, not a best-case image per branch."""
+    candidates, features = [], []
+    for path in directories:
+        values = load_payload(path)["metrics"][0]
+        selected = values[:, [METRIC_INDEX[name] for name in ("target_mse", "alpha_iou")]]
+        if np.isfinite(selected).all():
+            candidates.append(path)
+            features.append([np.log1p(selected[:, 0]).mean(), selected[:, 1].mean()])
+    if not candidates:
+        return directories[:3]
+    features = np.asarray(features)
+    spread = np.maximum(np.diff(np.quantile(features, (0.25, 0.75), axis=0), axis=0)[0], 1e-6)
+    distance = np.linalg.norm((features - np.median(features, axis=0)) / spread, axis=1)
+    return [candidates[index] for index in np.argsort(distance, kind="stable")[:3]]
 
 
 def plotting():
@@ -1265,452 +1386,438 @@ def display_rgba(rgba: np.ndarray) -> np.ndarray:
     return np.clip(rgba[:3] + 1 - alpha, 0, 1).transpose(1, 2, 0)
 
 
-def plot_channels(plt, payload: dict, result_dir: Path, cfg: Settings) -> None:
-    from matplotlib.colors import SymLogNorm
+def plot_erasure_plan(target: np.ndarray, plan: dict, path: Path) -> None:
+    plt = plotting()
+    figure, axes = plt.subplots(2, len(plan), figsize=(3 * len(plan), 6), squeeze=False)
+    for column, ((name, detail), label) in enumerate(
+        zip(plan.items(), condition_labels(plan), strict=True)
+    ):
+        mask = detail["mask"]
+        overlay = np.zeros((*mask.shape, 4))
+        overlay[mask] = (0.9, 0.1, 0.15, 0.8)
+        axes[0, column].imshow(display_rgba(target))
+        axes[0, column].imshow(overlay)
+        erased = target.copy()
+        erased[:, mask] = 0
+        axes[1, column].imshow(display_rgba(erased))
+        axes[0, column].set_title(
+            f"{label}\n{detail['removed_target_pixels']} pixels ({detail['actual_target_fraction']:.2%} of target)",
+            fontsize=10,
+        )
+        axes[1, column].set_title("Immediately after erasure", fontsize=10)
+    for axis in axes.flat:
+        axis.set_xticks([])
+        axis.set_yticks([])
+    figure.suptitle("Primitive erasure: identical target area per region; red = removed cells")
+    figure.tight_layout()
+    finish_figure(plt, figure, path)
 
-    for group, selection in (("hidden", slice(0, 12)), ("rgba", slice(12, 16))):
-        values = payload["channel_metrics"][:, :, :, selection]
-        names = payload["channel_order"][selection]
-        figure, axes = plt.subplots(7, 2, figsize=(13, 14), sharex=True, layout="constrained")
-        for column, title in enumerate(("Deviation from mature state (RMS)", "Step-to-step RMS")):
-            finite = values[:, :, column][np.isfinite(values[:, :, column])]
-            maximum = max(float(finite.max()), 1e-8) if finite.size else 1e-8
-            positive = finite[finite > 0]
-            floor = max(float(np.quantile(positive, 0.05)), 1e-10) if positive.size else 1e-10
-            norm = SymLogNorm(linthresh=floor, vmin=0, vmax=maximum)
-            cmap = plt.get_cmap("magma" if column == 0 else "viridis").copy()
-            cmap.set_bad("0.8")
-            for branch, label in enumerate(LABELS):
-                axis = axes[branch, column]
-                image = axis.imshow(
-                    values[branch, :, column].T,
-                    origin="lower",
-                    aspect="auto",
-                    cmap=cmap,
-                    norm=norm,
-                    extent=(-0.5, cfg.horizon + 0.5, -0.5, len(names) - 0.5),
-                )
-                axis.set_yticks(np.arange(len(names)), names, fontsize=7)
-                axis.axvline(cfg.perturb_step, color="white", linestyle="--", linewidth=0.7)
-                if column == 0:
-                    axis.set_ylabel(label, fontsize=8)
-                if branch == 0:
-                    axis.set_title(title)
-            figure.colorbar(
-                image,
-                ax=axes[:, column],
-                orientation="horizontal",
-                fraction=0.025,
-                label=f"RMS; linear below {floor:.2g}, logarithmic above",
+
+def preview_erasure(args) -> None:
+    cfg = Settings(erase_fraction=args.erase_fraction)
+    cfg.validate()
+    output = Path(args.output_root) / "mask_preview"
+    output.mkdir(parents=True, exist_ok=True)
+    for morphology in args.morphologies:
+        target = as_array(load_distill_target(Path(args.data_dir) / f"{morphology}.png"))
+        plan = primitive_erasure_plan(target, morphology, cfg)
+        path = output / f"{morphology}.png"
+        plot_erasure_plan(target, plan, path)
+        print(f"Saved {path}", flush=True)
+
+
+def plot_snapshots(plt, payload: dict, result_dir: Path, cfg: Settings) -> None:
+    branches = payload["branch_names"]
+    snap_steps = payload["snapshot_steps"]
+    if not snap_steps.size:
+        return
+    snapshot_columns = [(int(step), index) for index, step in enumerate(snap_steps)]
+    snapshot_columns.insert(
+        int(np.searchsorted(snap_steps, cfg.perturb_step)), (cfg.perturb_step, None)
+    )
+    figure, axes = plt.subplots(
+        len(branches),
+        len(snap_steps) + 1,
+        figsize=(1.7 * (len(snap_steps) + 1), 1.6 * len(branches)),
+        squeeze=False,
+    )
+    for branch, label in enumerate(condition_labels(branches)):
+        for column, (step, snapshot_index) in enumerate(snapshot_columns):
+            axis = axes[branch, column]
+            rgba = (
+                payload["pre_pulse_state"][:4]
+                if snapshot_index is None
+                else payload["snapshots"][branch, snapshot_index]
             )
-            axes[-1, column].set_xlabel("Steps after target attainment")
-        figure.suptitle(f"{group}: shared scales across branches; gray = missing/non-finite")
-        finish_figure(plt, figure, result_dir / f"{group}_channel_dynamics.png")
+            if np.isfinite(rgba).all():
+                axis.imshow(display_rgba(rgba))
+            else:
+                axis.text(
+                    0.5,
+                    0.5,
+                    "Non-finite",
+                    ha="center",
+                    va="center",
+                    transform=axis.transAxes,
+                    fontsize=8,
+                )
+            axis.set_xticks([])
+            axis.set_yticks([])
+            if branch == 0:
+                axis.set_title(
+                    f"t={step}, pre" if snapshot_index is None else f"t={step}",
+                    fontsize=8,
+                )
+            if column == 0:
+                axis.set_ylabel(label, fontsize=8)
+    figure.tight_layout()
+    finish_figure(plt, figure, result_dir / "perturbation_snapshots.png")
 
 
-def plot_replica(result_dir: Path, cfg: Settings) -> None:
-    from matplotlib.ticker import FuncFormatter, MaxNLocator
+def plot_replica(result_dir: Path, cfg: Settings, output_dir: Path) -> None:
+    from matplotlib.colors import Normalize
+    from matplotlib.lines import Line2D
+    from matplotlib.ticker import MaxNLocator
 
     plt = plotting()
-    with np.load(result_dir / "trajectories.npz", allow_pickle=False) as archive:
-        payload = {key: archive[key] for key in archive.files}
-    metadata = json.loads((result_dir / "metadata.json").read_text())
-    steps, metrics = payload["steps"], payload["metrics"]
-    plot_channels(plt, payload, result_dir, cfg)
-    time_indices = np.unique(
-        np.r_[np.arange(0, cfg.horizon + 1, 10), cfg.perturb_step, cfg.horizon]
+    payload = load_payload(result_dir)
+    scores, steps = payload["hidden_scores"], payload["steps"]
+    branches = payload["branch_names"]
+    ratio = payload["hidden_variance_ratio"]
+    indices = np.unique(
+        np.r_[np.arange(0, len(steps), 10), cfg.perturb_step, cfg.perturb_step + 1, cfg.horizon]
     )
-    for group in GROUPS:
-        scores = payload[f"{group}_scores"]
-        ratio = payload[f"{group}_variance_ratio"]
-        reference = (steps >= cfg.reference_start) & (steps < cfg.perturb_step)
-        for dimension in (2, 3):
-            figure = plt.figure(figsize=(16, 8) if dimension == 3 else (14, 7))
-            last_scatter = None
-            for branch, label in enumerate(LABELS):
-                axis = figure.add_subplot(
-                    2, 4, branch + 1, projection="3d" if dimension == 3 else None
-                )
-                gray = scores[0, reference, :dimension]
-                base = scores[0, time_indices, :dimension]
-                points = scores[branch, time_indices, :dimension]
-                axis.plot(*base.T, color="0.7", linewidth=0.7, linestyle="--")
-                axis.scatter(*gray.T, color="0.65", s=3, alpha=0.35)
-                valid = np.isfinite(points).all(axis=1)
-                last_scatter = axis.scatter(
-                    *points[valid].T,
-                    c=steps[time_indices][valid],
-                    cmap="plasma",
-                    vmin=0,
-                    vmax=cfg.horizon,
-                    s=4,
-                )
-                axis.plot(*points.T, color=COLORS[branch], linewidth=0.5, alpha=0.5)
-                for index, marker, color in (
-                    (cfg.perturb_step - 1, "o", "black"),
-                    (cfg.perturb_step, "D", "#db6d00"),
-                    (cfg.horizon, "x", "#008a96"),
-                ):
-                    if np.isfinite(scores[branch, index, :dimension]).all():
-                        axis.scatter(
-                            *scores[branch, index, :dimension], marker=marker, color=color, s=24
-                        )
-                axis.set_title(label, fontsize=9)
-                axis.set_xlabel(f"PC1 ({ratio[0]:.1%})", fontsize=8)
-                axis.set_ylabel(f"PC2 ({ratio[1]:.1%})", fontsize=8)
-                if dimension == 3:
-                    axis.set_zlabel(f"PC3 ({ratio[2]:.1%})", fontsize=8)
-                for coordinate_axis in (
-                    axis.xaxis,
-                    axis.yaxis,
-                    *([axis.zaxis] if dimension == 3 else []),
-                ):
-                    coordinate_axis.set_major_locator(MaxNLocator(nbins=3))
-                    coordinate_axis.set_major_formatter(
-                        FuncFormatter(lambda value, _: f"{value:.2g}")
-                    )
-                axis.tick_params(labelsize=7)
-            from matplotlib.lines import Line2D
-
-            handles = [
-                Line2D([], [], color="0.7", linestyle="--", label="Unperturbed control"),
-                Line2D([], [], linestyle="", marker="o", color="0.65", label="Pre-pulse reference"),
+    reference = (steps >= cfg.reference_start) & (steps < cfg.perturb_step)
+    norm = Normalize(0, cfg.horizon)
+    columns, rows = 3, (len(branches) + 2) // 3
+    output_dir.mkdir(parents=True, exist_ok=True)
+    for dimension in (2, 3):
+        figure = plt.figure(figsize=(5.2 * columns, 3.9 * rows + 1.2), layout="constrained")
+        axes = []
+        for branch, label in enumerate(condition_labels(branches)):
+            axis = figure.add_subplot(
+                rows, columns, branch + 1, projection="3d" if dimension == 3 else None
+            )
+            axes.append(axis)
+            base = scores[0, indices, :dimension]
+            ref = scores[0, reference, :dimension]
+            points = scores[branch, indices, :dimension]
+            axis.plot(*base.T, color="0.6", linestyle="--", linewidth=0.9, zorder=1)
+            axis.scatter(*ref.T, color="#72b7cc", s=9, alpha=0.65, zorder=2)
+            axis.plot(*points.T, color="0.7", linewidth=0.5, alpha=0.5, zorder=1)
+            scatter = axis.scatter(
+                *points.T, c=steps[indices], cmap="plasma", norm=norm, s=9, zorder=3
+            )
+            for point, marker, color in (
+                (scores[0, cfg.perturb_step, :dimension], "o", "black"),
+                (scores[branch, cfg.perturb_step, :dimension], "D", "#e87916"),
+                (scores[branch, -1, :dimension], "x", "#007ea7"),
+            ):
+                if np.isfinite(point).all():
+                    axis.scatter(*point, marker=marker, color=color, s=38, zorder=5)
+            axis.set_xlabel(f"PC1 ({ratio[0]:.1%})", fontsize=9)
+            axis.set_ylabel(f"PC2 ({ratio[1]:.1%})", fontsize=9)
+            if dimension == 3:
+                axis.set_zlabel(f"PC3 ({ratio[2]:.1%})", fontsize=9)
+                axis.zaxis.set_major_locator(MaxNLocator(4))
+                axis.view_init(elev=23, azim=-55)
+            else:
+                axis.grid(alpha=0.2)
+            axis.set_title(label, fontsize=10)
+            axis.xaxis.set_major_locator(MaxNLocator(4))
+            axis.yaxis.set_major_locator(MaxNLocator(4))
+            axis.tick_params(labelsize=8)
+        figure.colorbar(scatter, ax=axes, fraction=0.025, label="Steps after target attainment")
+        figure.legend(
+            handles=[
+                Line2D([], [], color="0.6", linestyle="--", label="Unperturbed control"),
                 Line2D(
-                    [], [], linestyle="", marker="o", color="black", label="Last pre-pulse sample"
+                    [],
+                    [],
+                    marker="o",
+                    linestyle="none",
+                    color="#72b7cc",
+                    label="Pre-pulse reference (fit + validation)",
                 ),
                 Line2D(
                     [],
                     [],
-                    linestyle="",
+                    marker="o",
+                    linestyle="none",
+                    color="black",
+                    label="Immediately before pulse",
+                ),
+                Line2D(
+                    [],
+                    [],
                     marker="D",
-                    color="#db6d00",
+                    linestyle="none",
+                    color="#e87916",
                     label="Immediately after pulse",
                 ),
-                Line2D([], [], linestyle="", marker="x", color="#008a96", label="State at horizon"),
-            ]
-            figure.legend(handles=handles, loc="lower center", ncol=3, fontsize=8)
-            figure.suptitle(
-                f"{metadata['system']} | {group} local PCA | replica {metadata['replicate']}\n"
-                "Axes fitted only before perturbation; subplot limits may differ",
-                fontsize=12,
-            )
-            figure.subplots_adjust(bottom=0.16, top=0.87, wspace=0.42, hspace=0.45, right=0.88)
-            color_axis = figure.add_axes([0.95, 0.22, 0.012, 0.53])
-            figure.colorbar(last_scatter, cax=color_axis, label="Steps after target attainment")
-            finish_figure(plt, figure, result_dir / f"{group}_local_pca_{dimension}d.png")
-
-    figure, axes = plt.subplots(4, 2, figsize=(12, 12), sharex=True)
-    for branch, label in enumerate(LABELS):
-        for column in range(2):
-            distance = metrics[branch, :, 10 + column]
-            axes[0, column].plot(steps, distance, color=COLORS[branch], label=label, linewidth=0.8)
-            axes[1, column].plot(
-                steps, metrics[branch, :, 4 + column], color=COLORS[branch], linewidth=0.8
-            )
-            group = tuple(GROUPS)[column]
-            for row, offset, limit in ((2, 12, "cloud_limit"), (3, 13, "residual_limit")):
-                axes[row, column].plot(
-                    steps,
-                    metrics[branch, :, offset + 2 * column] / metadata["local_pca"][group][limit],
-                    color=COLORS[branch],
-                    linewidth=0.8,
-                )
-    for column, group in enumerate(GROUPS):
-        axes[0, column].set_title(f"{group}: distance to paired control / mature RMS")
-        axes[1, column].set_title(f"{group}: step-to-step RMS")
-        axes[2, column].set_title(f"{group}: PCA cloud distance / held-out bound")
-        axes[3, column].set_title(f"{group}: PCA residual / held-out bound")
-        for row in (2, 3):
-            axes[row, column].axhline(1, color="0.3", linestyle=":", linewidth=0.8)
-    for axis in axes.flat:
-        axis.set_yscale("symlog", linthresh=1e-8)
-        axis.axvline(cfg.perturb_step, color="0.4", linestyle="--", linewidth=0.8)
-        axis.grid(alpha=0.2)
-        axis.set_xlabel("Steps after target attainment")
-    figure.legend(*axes[0, 0].get_legend_handles_labels(), loc="lower center", ncol=4, fontsize=8)
-    figure.tight_layout(rect=(0, 0.09, 1, 1))
-    finish_figure(plt, figure, result_dir / "paired_recovery_and_activity.png")
-
-    snap_steps = payload["snapshot_steps"]
-    if snap_steps.size:
-        snapshot_columns = [(int(step), index) for index, step in enumerate(snap_steps)]
-        snapshot_columns.insert(
-            int(np.searchsorted(snap_steps, cfg.perturb_step)), (cfg.perturb_step, None)
+                Line2D(
+                    [],
+                    [],
+                    marker="x",
+                    linestyle="none",
+                    color="#007ea7",
+                    label="Final state (if finite)",
+                ),
+            ],
+            loc="outside lower center",
+            ncol=3,
+            fontsize=9,
         )
-        figure, axes = plt.subplots(
-            len(BRANCHES),
-            len(snap_steps) + 1,
-            figsize=(1.7 * (len(snap_steps) + 1), 11),
-            squeeze=False,
+        figure.suptitle(
+            f"{result_dir.parent.name}, {result_dir.name}: hidden-state PCA\n"
+            "Axes fitted only before perturbation; geometry does not prove an attractor",
+            fontsize=12,
         )
-        for branch, label in enumerate(LABELS):
-            for column, (step, snapshot_index) in enumerate(snapshot_columns):
-                axis = axes[branch, column]
-                rgba = (
-                    payload["pre_pulse_state"][:4]
-                    if snapshot_index is None
-                    else payload["snapshots"][branch, snapshot_index]
-                )
-                if np.isfinite(rgba).all():
-                    axis.imshow(display_rgba(rgba))
-                else:
-                    axis.text(
-                        0.5,
-                        0.5,
-                        "Non-finite",
-                        ha="center",
-                        va="center",
-                        transform=axis.transAxes,
-                        fontsize=8,
-                    )
-                axis.set_xticks([])
-                axis.set_yticks([])
-                if branch == 0:
-                    axis.set_title(
-                        f"t={step}, pre" if snapshot_index is None else f"t={step}",
-                        fontsize=8,
-                    )
-                if column == 0:
-                    axis.set_ylabel(label, fontsize=8)
-        figure.tight_layout()
-        finish_figure(plt, figure, result_dir / "perturbation_snapshots.png")
-
-    path = result_dir / "window_diagnostics.npz"
-    if not path.exists():
-        return
-    with np.load(path, allow_pickle=False) as archive:
-        details = {key: archive[key] for key in archive.files}
-    windows = analysis_windows(cfg)
-    for group in GROUPS:
-        figure, axes = plt.subplots(2, 4, figsize=(14, 7))
-        return_figure, return_axes = plt.subplots(2, 4, figsize=(14, 7))
-        recurrence_figure, recurrence_axes = plt.subplots(2, 4, figsize=(14, 7))
-        for branch, label in enumerate(LABELS):
-            axis = axes.flat[branch]
-            rec_axis = recurrence_axes.flat[branch]
-            return_axis = return_axes.flat[branch]
-            for window_label, start, stop in windows:
-                prefix = f"{BRANCHES[branch]}__{group}__{window_label}__"
-                if prefix + "welch_frequency" in details:
-                    frequency, power = (
-                        details[prefix + "welch_frequency"],
-                        details[prefix + "welch_power"],
-                    )
-                    axis.plot(
-                        frequency[1:],
-                        np.maximum(power[1:], 1e-30),
-                        label=f"{start}-{stop}",
-                        linewidth=0.8,
-                    )
-                    return_axis.plot(
-                        details[prefix + "return_lags"],
-                        details[prefix + "relative_return_distances"],
-                        label=f"{start}-{stop}",
-                        linewidth=0.8,
-                    )
-            axis.set_xscale("log")
-            axis.set_yscale("log")
-            axis.set_title(label, fontsize=9)
-            axis.set_xlabel("Cycles per step", fontsize=8)
-            axis.set_ylabel("Welch power density", fontsize=8)
-            axis.tick_params(labelsize=7)
-            return_axis.set_title(label, fontsize=9)
-            return_axis.set_xlabel("Lag (NCA steps)", fontsize=8)
-            return_axis.set_ylabel("Return distance / window radius", fontsize=8)
-            return_axis.tick_params(labelsize=7)
-            return_axis.grid(alpha=0.2)
-            prefix = f"{BRANCHES[branch]}__{group}__{windows[-1][0]}__"
-            if prefix + "recurrence_distance" in details:
-                distance = details[prefix + "recurrence_distance"]
-                rec_steps = details[prefix + "recurrence_steps"]
-                valid = np.abs(rec_steps[:, None] - rec_steps[None]) > 20
-                diameter = (
-                    max(float(np.quantile(distance[valid], 0.95)), EPS) if valid.any() else EPS
-                )
-                image = rec_axis.imshow(
-                    distance / diameter,
-                    origin="lower",
-                    cmap="magma_r",
-                    vmin=0,
-                    vmax=1,
-                    extent=(rec_steps[0], rec_steps[-1], rec_steps[0], rec_steps[-1]),
-                )
-                if np.min(distance / diameter) < 0.1 < np.max(distance / diameter):
-                    rec_axis.contour(
-                        rec_steps,
-                        rec_steps,
-                        distance / diameter,
-                        levels=[0.1],
-                        colors="cyan",
-                        linewidths=0.4,
-                    )
-                recurrence_figure.colorbar(image, ax=rec_axis, fraction=0.045)
-            else:
-                rec_axis.text(
-                    0.5, 0.5, "Incomplete window", ha="center", transform=rec_axis.transAxes
-                )
-            rec_axis.set_title(label, fontsize=9)
-            rec_axis.tick_params(labelsize=7)
-        axes.flat[-1].axis("off")
-        recurrence_axes.flat[-1].axis("off")
-        return_axes.flat[-1].axis("off")
-        axes.flat[-1].legend(*axes.flat[0].get_legend_handles_labels(), loc="center", fontsize=9)
-        return_axes.flat[-1].legend(
-            *return_axes.flat[0].get_legend_handles_labels(), loc="center", fontsize=9
-        )
-        figure.suptitle(f"{metadata['system']} | {group} | window spectra (pulse excluded)")
-        recurrence_figure.suptitle(
-            f"{group}: late-window distance / robust diameter; cyan = 10% threshold"
-        )
-        return_figure.suptitle(f"{metadata['system']} | {group} | return distances by window")
-        figure.tight_layout()
-        recurrence_figure.tight_layout()
-        return_figure.tight_layout()
-        finish_figure(plt, figure, result_dir / f"{group}_window_spectra.png")
-        finish_figure(plt, recurrence_figure, result_dir / f"{group}_late_recurrence.png")
-        finish_figure(plt, return_figure, result_dir / f"{group}_return_distances.png")
-
-    with (result_dir / "window_metrics.csv").open(newline="") as handle:
-        rows = list(csv.DictReader(handle))
-    figure, axes = plt.subplots(2, 3, figsize=(15, 7), layout="constrained")
-    for group_index, group in enumerate(GROUPS):
-        for column, (field, title) in enumerate(
-            (
-                ("full_group_step_rms", "Full-grid step RMS"),
-                ("mean_cell_temporal_variance", "Mean per-cell temporal variance"),
-                ("spectral_entropy", "PCA spectral entropy"),
-            )
-        ):
-            axis = axes[group_index, column]
-            for branch, label in enumerate(LABELS):
-                selected = {
-                    row["window"]: row
-                    for row in rows
-                    if row["branch"] == BRANCHES[branch] and row["group"] == group
-                }
-                values = [float(selected[name].get(field) or "nan") for name, _, _ in windows]
-                axis.plot(
-                    np.arange(len(windows)), values, color=COLORS[branch], marker=".", label=label
-                )
-            axis.set_title(f"{group}: {title}", fontsize=10)
-            axis.set_xticks(
-                np.arange(len(windows)),
-                [f"{start}-{stop}" for _, start, stop in windows],
-                rotation=40,
-                ha="right",
-                fontsize=8,
-            )
-            axis.grid(alpha=0.2)
-            if column < 2:
-                axis.set_yscale("symlog", linthresh=1e-10)
-            else:
-                axis.set_ylim(0, 1.05)
-    figure.legend(
-        *axes[0, 0].get_legend_handles_labels(), loc="outside lower center", ncol=4, fontsize=8
-    )
-    finish_figure(plt, figure, result_dir / "window_dynamics.png")
+        finish_figure(plt, figure, output_dir / f"hidden_pca_{dimension}d.png")
 
 
-def plot_population(folder: Path, cfg: Settings) -> None:
+def plot_population(folder: Path, cfg: Settings, *, control_only=False) -> None:
+    import warnings
+
     plt = plotting()
-    figure, axes = plt.subplots(2, 4, figsize=(16, 7), sharex=True)
-    titles = (
-        "Global RGBA target MSE",
-        "Target-region RGBA MSE",
-        "Alpha-mask IoU",
-        "Alive-area ratio",
-    )
-    for system_index, system in enumerate(SYSTEMS):
-        curves = []
-        for file in sorted((folder / system).glob("replicate_*/trajectories.npz")):
-            with np.load(file, allow_pickle=False) as archive:
-                curves.append(archive["metrics"][:, ::10, :4])
-        if not curves:
-            continue
-        values = np.stack(curves)
-        steps = np.arange(0, cfg.horizon + 1, 10)
-        for metric in range(4):
-            axis = axes[system_index, metric]
-            for branch, label in enumerate(LABELS):
-                sample = values[:, branch, :, metric]
-                count = np.isfinite(sample).sum(axis=0)
-                present = count > 0
-                median, q25, q75 = np.full((3, len(steps)), np.nan)
-                if present.any():
-                    q25[present], median[present], q75[present] = np.nanquantile(
-                        sample[:, present], [0.25, 0.5, 0.75], axis=0
-                    )
-                axis.plot(steps, median, color=COLORS[branch], label=label, linewidth=0.9)
-                axis.fill_between(steps, q25, q75, color=COLORS[branch], alpha=0.10)
-            axis.set_title(f"{system}\n{titles[metric]}", fontsize=10)
-            axis.axvline(cfg.perturb_step, color="0.5", linestyle="--", linewidth=0.8)
-            if metric < 2:
-                axis.set_yscale("symlog", linthresh=1e-6)
-            axis.set_xlabel("Steps after target attainment")
-            axis.grid(alpha=0.2)
-            axis.tick_params(labelsize=8)
-    figure.legend(*axes[0, 0].get_legend_handles_labels(), loc="lower center", ncol=4, fontsize=9)
-    figure.suptitle(
-        "Median and IQR across recorded replicas; non-finite observations omitted (see counts)"
-    )
-    figure.tight_layout(rect=(0, 0.10, 1, 0.95))
-    finish_figure(plt, figure, folder / "core_morphology_comparison.png")
-
-    count_figure, count_axes = plt.subplots(1, 2, figsize=(12, 4), squeeze=False)
-    for index, system in enumerate(SYSTEMS):
-        arrays = []
-        for file in sorted((folder / system).glob("replicate_*/trajectories.npz")):
-            with np.load(file, allow_pickle=False) as archive:
-                arrays.append(np.isfinite(archive["metrics"][:, ::10, 0]))
-        if arrays:
-            counts = np.stack(arrays).sum(axis=0)
-            for branch, label in enumerate(LABELS):
-                count_axes[0, index].plot(
-                    np.arange(0, cfg.horizon + 1, 10),
-                    counts[branch],
-                    label=label,
-                    color=COLORS[branch],
-                )
-        count_axes[0, index].set_title(system)
-        count_axes[0, index].set_ylabel("Finite replicas contributing")
-        count_axes[0, index].set_xlabel("Steps after target attainment")
-    count_figure.tight_layout()
-    finish_figure(plt, count_figure, folder / "contributing_replicates.png")
-
-    summary_path = folder / "condition_metrics.csv"
-    if summary_path.exists():
-        with summary_path.open(newline="") as handle:
-            rows = list(csv.DictReader(handle))
-        figure, axis = plt.subplots(figsize=(12, 4))
-        for index, system in enumerate(SYSTEMS):
-            selected = {row["branch"]: row for row in rows if row["system"] == system}
-            for branch, name in enumerate(BRANCHES):
-                row = selected.get(name)
-                if row is None or not int(row["n_pre_pulse_target"]):
-                    continue
-                value = float(row["recovery_fraction"])
-                errors = [
-                    [max(0, value - float(row["recovery_ci95_low"]))],
-                    [max(0, float(row["recovery_ci95_high"]) - value)],
-                ]
-                axis.errorbar(
-                    branch + (index - 0.5) * 0.2,
-                    value,
-                    yerr=errors,
-                    fmt="o",
-                    capsize=3,
-                    color=("#2a6fbb", "#c44949")[index],
-                    label=system if branch == 0 else None,
-                )
-        axis.set_xticks(np.arange(len(BRANCHES)), LABELS, rotation=20, ha="right")
-        axis.set_ylim(-0.04, 1.04)
-        axis.set_ylabel("Retained or recovered target fraction")
-        axis.set_title(
-            "95% Wilson intervals; denominator: replicas in target immediately before pulse"
+    data, comparisons, branches = {}, {}, None
+    for system in SYSTEMS:
+        replicas, control_replicas = [], []
+        for path in sorted((folder / system).glob("replicate_*/trajectories.npz")):
+            payload = load_payload(path.parent)
+            names = payload["branch_names"].tolist()
+            if branches is not None and branches != names:
+                raise ValueError("Cannot pool replicas with different perturbation conditions")
+            branches = names
+            replicas.append(payload["metrics"])
+            control_values = load_control_comparison(path.parent, payload)
+            if control_values is not None:
+                control_replicas.append(control_values)
+        data[system] = np.stack(replicas) if replicas else None
+        comparisons[system] = (
+            np.stack(control_replicas)
+            if control_replicas and len(control_replicas) == len(replicas)
+            else None
         )
-        axis.legend()
-        figure.tight_layout()
-        finish_figure(plt, figure, folder / "recovery_comparison.png")
+    if branches is None:
+        return
+    output = folder / "analysis"
+    output.mkdir(exist_ok=True)
+    figures = (
+        (
+            "morphological_stability_recovery.png",
+            ("target_mse", "alpha_iou"),
+            ("Global RGBA target MSE", "Alpha-mask IoU"),
+            "Morphological Stability and Recovery",
+            data,
+            METRIC_INDEX,
+        ),
+        (
+            "hidden_divergence_from_control.png",
+            ("hidden_pair_rms",),
+            ("Hidden-state RMS distance to paired control",),
+            "Hidden-State Deviation from the Paired Unperturbed Control",
+            data,
+            METRIC_INDEX,
+        ),
+    )
+    if control_only:
+        figures = ()
+    if all(data[system] is None or comparisons[system] is not None for system in SYSTEMS):
+        figures += (
+            (
+                "morphological_deviation_from_control.png",
+                CONTROL_MORPHOLOGY_METRICS,
+                ("Global RGBA MSE to paired control", "Alpha-mask IoU with paired control"),
+                "Morphological Deviation from the Time-Matched Unperturbed Control",
+                comparisons,
+                {name: index for index, name in enumerate(CONTROL_MORPHOLOGY_METRICS)},
+            ),
+        )
+    else:
+        print(f"Missing stepwise visible comparisons in {folder}; run compare-control", flush=True)
+    titles = ("Persistent NCA", "Growing NCA + mature restore (beta=0.1)")
+    for filename, names, labels, title, figure_data, metric_indices in figures:
+        figure, axes = plt.subplots(
+            len(names),
+            2,
+            figsize=(13, 3.6 * len(names) + 1.3),
+            squeeze=False,
+            sharex=True,
+            layout="constrained",
+        )
+        handles = []
+        for column, system in enumerate(SYSTEMS):
+            values = figure_data[system]
+            if values is None:
+                for axis in axes[:, column]:
+                    axis.set_title(titles[column] + ": no recorded replicas")
+                continue
+            for row, (name, label) in enumerate(zip(names, labels, strict=True)):
+                axis = axes[row, column]
+                for branch, (branch_label, color) in enumerate(
+                    zip(condition_labels(branches), COLORS)
+                ):
+                    curves = values[:, branch, :, metric_indices[name]].copy()
+                    curves[~np.isfinite(curves)] = np.nan
+                    with warnings.catch_warnings():
+                        warnings.simplefilter("ignore", RuntimeWarning)
+                        low, median, high = np.nanpercentile(curves, (25, 50, 75), axis=0)
+                    (line,) = axis.plot(
+                        np.arange(cfg.horizon + 1),
+                        median,
+                        color=color,
+                        label=branch_label,
+                        linewidth=1.3,
+                    )
+                    axis.fill_between(
+                        np.arange(cfg.horizon + 1), low, high, color=color, alpha=0.12
+                    )
+                    if not column and not row:
+                        handles.append(line)
+                axis.axvline(cfg.perturb_step, color="0.4", linestyle="--", linewidth=1)
+                if name in ("alpha_iou", "alpha_control_iou"):
+                    axis.set_ylim(0, 1.02)
+                elif name in ("target_mse", "hidden_pair_rms", "rgba_control_mse"):
+                    axis.set_yscale("symlog", linthresh=1e-6)
+                axis.set_ylim(bottom=0)
+                axis.set_ylabel(label, fontsize=10)
+                axis.grid(alpha=0.2)
+                if row == 0:
+                    axis.set_title(f"{titles[column]} (n={len(values)})", fontsize=11)
+                if row == len(names) - 1:
+                    axis.set_xlabel("Steps after target attainment")
+        if not handles:
+            handles = [
+                plt.Line2D([], [], color=color, label=label)
+                for label, color in zip(condition_labels(branches), COLORS)
+            ]
+        handles.append(
+            plt.Line2D(
+                [], [], color="0.4", linestyle="--", label=f"Perturbation (t={cfg.perturb_step})"
+            )
+        )
+        figure.legend(handles=handles, loc="outside lower center", ncol=4, fontsize=8)
+        figure.suptitle(
+            f"{folder.parent.name}: {title}\nMedian and IQR across rollout replicates",
+            fontsize=12,
+        )
+        finish_figure(plt, figure, output / filename)
+
+
+def compare_control(args) -> None:
+    from threadpoolctl import threadpool_limits
+
+    found = False
+    for morphology, folder in result_folders(args):
+        found = True
+        manifest = json.loads((folder / "manifest.json").read_text())
+        cfg = Settings(**manifest["settings"])
+        target = None
+        counts = {}
+        for system in SYSTEMS:
+            model, count = None, 0
+            for archive_path in sorted((folder / system).glob("replicate_*/trajectories.npz")):
+                result_dir = archive_path.parent
+                metadata = json.loads((result_dir / "metadata.json").read_text())
+                if metadata["status"] != "complete":
+                    continue
+                payload = load_payload(result_dir)
+                if load_control_comparison(result_dir, payload) is None:
+                    source_hash = file_sha256(archive_path)
+                    if model is None:
+                        environment = {
+                            "python": platform.python_version(),
+                            "torch": str(torch.__version__),
+                            "numpy": np.__version__,
+                        }
+                        if any(manifest.get(key) != value for key, value in environment.items()):
+                            raise ValueError(
+                                "Control replay requires the original numerical environment"
+                            )
+                        checkpoint = Path(manifest["checkpoint_paths"][system])
+                        target_path = Path(manifest["target_path"])
+                        if file_sha256(checkpoint) != manifest["checkpoint_hashes"][system]:
+                            raise ValueError(f"Checkpoint changed: {checkpoint}")
+                        if file_sha256(target_path) != manifest["target_hash"]:
+                            raise ValueError(f"Target changed: {target_path}")
+                        device = get_device(manifest["device"])
+                        model = load_growing_checkpoint(
+                            checkpoint,
+                            channels=cfg.channels,
+                            hidden_size=cfg.hidden_size,
+                            update_probability=cfg.fire_rate,
+                            device=device,
+                        )
+                        if target is None:
+                            target = load_distill_target(
+                                target_path, cfg.target_size, cfg.padding, device
+                            )
+                    branches = payload["branch_names"].tolist()
+                    plan = {
+                        name: {**metadata["perturbations"][name], "mask": mask}
+                        for name, mask in zip(
+                            [name for name in branches if name.startswith("erase_")],
+                            payload["erase_masks"],
+                            strict=True,
+                        )
+                    }
+                    values = np.full(
+                        (*payload["metrics"].shape[:2], len(CONTROL_MORPHOLOGY_METRICS)), np.nan
+                    )
+                    print(
+                        f"Control comparison replay: {morphology}/{system}/{result_dir.name}",
+                        flush=True,
+                    )
+                    with threadpool_limits(limits=1):
+                        replay_snapshots(
+                            model,
+                            target,
+                            torch.as_tensor(payload["mature_state"], device=device).unsqueeze(0),
+                            system,
+                            int(metadata["replicate"]),
+                            cfg,
+                            payload["pre_pulse_state"],
+                            payload["metrics"],
+                            branches,
+                            plan,
+                            control_metrics=values,
+                        )
+                    if file_sha256(archive_path) != source_hash:
+                        raise ValueError(f"Saved trajectory changed during replay: {archive_path}")
+                    save_npz(
+                        result_dir / "morphology_control_comparison.npz",
+                        steps=payload["steps"],
+                        branch_names=payload["branch_names"],
+                        metric_names=np.asarray(CONTROL_MORPHOLOGY_METRICS),
+                        metrics=values,
+                        source_sha256=np.asarray(source_hash),
+                    )
+                count += 1
+            counts[system] = count
+        if not any(counts.values()):
+            print(f"No completed trajectories in {folder}", flush=True)
+            continue
+        plot_population(folder, cfg, control_only=True)
+        output = folder / "analysis"
+        output.mkdir(exist_ok=True)
+        save_json(
+            output / "control_comparison_settings.json",
+            {
+                "metrics": list(CONTROL_MORPHOLOGY_METRICS),
+                "reference": "Paired unperturbed trajectory at the SAME simulation step, not a fixed snapshot",
+                "rgba_control_mse": "Raw RGBA MSE over the full grid, including background; zero means identical RGBA",
+                "alpha_control_iou": f"IoU between alpha masks > {cfg.alpha_threshold}; one means identical masks (including two empty masks)",
+                "steps": [0, cfg.horizon],
+                "perturbation_step": cfg.perturb_step,
+                "replicates": counts,
+                "aggregation": "Median and 25th-75th percentiles of finite paired comparisons at each step; missing states are not imputed",
+                "limitation": "A match to the control does not imply target recovery: the control may itself lose the morphology. Missing control states make both comparisons undefined",
+            },
+        )
+        print(f"Saved {output / 'morphological_deviation_from_control.png'}", flush=True)
+    if not found:
+        raise FileNotFoundError("No Experiment 2 manifests found")
 
 
 def plot(args) -> None:
@@ -1718,24 +1825,160 @@ def plot(args) -> None:
     for _, folder in result_folders(args):
         found = True
         cfg = Settings(**json.loads((folder / "manifest.json").read_text())["settings"])
+        (folder / "analysis").mkdir(exist_ok=True)
         plot_population(folder, cfg)
+        selection = {}
         for system in SYSTEMS:
             directories = [
                 path.parent
                 for path in sorted((folder / system).glob("replicate_*/trajectories.npz"))
             ]
             selected = (
-                directories[:3]
+                select_replicas(directories)
                 if args.replicates is None
                 else [
                     path for path in directories if int(path.name.split("_")[-1]) in args.replicates
                 ]
             )
+            selection[system] = [int(path.name.split("_")[-1]) for path in selected]
             for result_dir in selected:
-                plot_replica(result_dir, cfg)
-                print(f"Plotted {result_dir}", flush=True)
+                output = folder / "analysis" / system / result_dir.name
+                plot_replica(result_dir, cfg, output)
+                print(f"Plotted {output}", flush=True)
+        save_json(
+            folder / "analysis" / "figure_replicas.json",
+            {
+                "replicas": selection,
+                "selection": "Explicit IDs"
+                if args.replicates is not None
+                else "Three finite control trajectories closest to median log1p MSE and mean IoU, IQR-scaled; "
+                "the same replica is used for all its perturbations. Selection is illustrative, not inference.",
+            },
+        )
     if not found:
         raise FileNotFoundError("No Experiment 2 manifests found")
+
+
+def regenerate_snapshots(args) -> None:
+    from threadpoolctl import threadpool_limits
+
+    plt = plotting()
+    found = False
+    for morphology, folder in result_folders(args):
+        found = True
+        manifest = json.loads((folder / "manifest.json").read_text())
+        cfg = Settings(**manifest["settings"])
+        device = get_device(manifest["device"])
+        target_path = Path(manifest["target_path"])
+        target = None
+        for system in args.systems:
+            model = None
+            directories = [
+                path.parent
+                for path in sorted((folder / system).glob("replicate_*/trajectories.npz"))
+            ]
+            for result_dir in directories:
+                replicate = int(result_dir.name.split("_")[-1])
+                if args.replicates is not None and replicate not in args.replicates:
+                    continue
+                image_path = result_dir / "perturbation_snapshots.png"
+                if image_path.exists() and not args.overwrite:
+                    print(f"Already plotted: {image_path}", flush=True)
+                    continue
+                with np.load(result_dir / "trajectories.npz", allow_pickle=False) as archive:
+                    indices = retained_branch_indices(archive["branch_names"])
+                    branches = archive["branch_names"][indices].tolist()
+                    pre_pulse = archive["pre_pulse_state"]
+                    steps = archive["snapshot_steps"]
+                    if steps.size:
+                        snapshots = archive["snapshots"][indices]
+                    else:
+                        replay_path = result_dir / "snapshot_replay.npz"
+                        if replay_path.exists():
+                            with np.load(replay_path, allow_pickle=False) as replay:
+                                steps, snapshots = replay["snapshot_steps"], replay["snapshots"]
+                                replay_branches = (
+                                    replay["branch_names"]
+                                    if "branch_names" in replay
+                                    else archive["branch_names"]
+                                )
+                                if len(replay_branches) != len(snapshots):
+                                    raise ValueError(
+                                        f"Snapshot condition count differs: {replay_path}"
+                                    )
+                                replay_indices = retained_branch_indices(replay_branches)
+                                if replay_branches[replay_indices].tolist() != branches:
+                                    raise ValueError(f"Snapshot conditions differ: {replay_path}")
+                                snapshots = snapshots[replay_indices]
+                        else:
+                            checkpoint = Path(manifest["checkpoint_paths"][system])
+                            if file_sha256(checkpoint) != manifest["checkpoint_hashes"][system]:
+                                raise ValueError(f"Checkpoint changed: {checkpoint}")
+                            if file_sha256(target_path) != manifest["target_hash"]:
+                                raise ValueError(f"Target changed: {target_path}")
+                            if model is None:
+                                model = load_growing_checkpoint(
+                                    checkpoint,
+                                    channels=cfg.channels,
+                                    hidden_size=cfg.hidden_size,
+                                    update_probability=cfg.fire_rate,
+                                    device=device,
+                                )
+                            if target is None:
+                                target = load_distill_target(
+                                    target_path, cfg.target_size, cfg.padding, device
+                                )
+                            mature = torch.as_tensor(
+                                archive["mature_state"], device=device
+                            ).unsqueeze(0)
+                            print(f"Replaying {morphology}/{system}/{replicate:03d}", flush=True)
+                            metadata = json.loads((result_dir / "metadata.json").read_text())
+                            erasure_plan = {
+                                name: {**metadata["perturbations"][name], "mask": mask}
+                                for name, mask in zip(
+                                    [name for name in branches if name.startswith("erase_")],
+                                    archive["erase_masks"],
+                                    strict=True,
+                                )
+                            }
+                            with threadpool_limits(limits=1):
+                                steps, snapshots = replay_snapshots(
+                                    model,
+                                    target,
+                                    mature,
+                                    system,
+                                    replicate,
+                                    cfg,
+                                    pre_pulse,
+                                    load_payload(result_dir)["metrics"],
+                                    branches,
+                                    erasure_plan,
+                                )
+                            save_npz(
+                                replay_path,
+                                branch_names=np.asarray(branches),
+                                snapshot_steps=steps,
+                                snapshots=snapshots,
+                            )
+                plot_snapshots(
+                    plt,
+                    {
+                        "branch_names": branches,
+                        "snapshot_steps": steps,
+                        "snapshots": snapshots,
+                        "pre_pulse_state": pre_pulse,
+                    },
+                    result_dir,
+                    cfg,
+                )
+                print(f"Saved {image_path}", flush=True)
+    if not found:
+        raise FileNotFoundError("No Experiment 2 manifests found")
+
+
+def analyze_attractor(args) -> None:
+    analyze(args)
+    plot(args)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -1758,9 +2001,14 @@ def build_parser() -> argparse.ArgumentParser:
     running.add_argument("--snapshot-replicates", type=int, default=3)
     running.add_argument("--pca-components", type=int, default=12)
     running.add_argument("--seed", type=int, default=50_000)
+    running.add_argument(
+        "--erase-fraction",
+        type=float,
+        help="Override equal-area erasure; default: full gecko hind leg (~10%% of target), 10%% for butterfly",
+    )
     running.set_defaults(handler=run)
     analysis = commands.add_parser(
-        "analyze", help="PCA-window, Fourier, recurrence and recovery statistics from recorded data"
+        "analyze", help="Morphological and hidden-state recovery statistics from recorded data"
     )
     analysis.add_argument("--bootstrap-samples", type=int, default=5000)
     analysis.set_defaults(handler=analyze)
@@ -1771,10 +2019,51 @@ def build_parser() -> argparse.ArgumentParser:
         "--replicates",
         nargs="+",
         type=int,
-        help="Replica IDs for detailed figures; default: first three recorded",
+        help="Replica IDs for PCA figures; default: three closest to median control morphology",
     )
     plots.set_defaults(handler=plot)
-    for command in (training, running, analysis, plots):
+    comparison = commands.add_parser(
+        "compare-control",
+        help="Compare RGBA and alpha masks to the paired control at every step; replay missing data without overwriting trajectories",
+    )
+    comparison.set_defaults(handler=compare_control)
+    snapshots = commands.add_parser(
+        "snapshots", help="Recreate missing per-replica morphology snapshots from saved runs"
+    )
+    snapshots.add_argument("--systems", nargs="+", choices=SYSTEMS, default=SYSTEMS)
+    snapshots.add_argument("--replicates", nargs="+", type=int, help="Replica IDs; default: all")
+    snapshots.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Regenerate existing snapshot figures using saved data when available",
+    )
+    snapshots.set_defaults(handler=regenerate_snapshots)
+    preview = commands.add_parser(
+        "preview-erasure", help="Plot anatomical erasure masks without NCA simulation"
+    )
+    preview.add_argument(
+        "--erase-fraction", type=float, help="Override default full-leg/equal-area erasure"
+    )
+    preview.add_argument("--data-dir", default="data")
+    preview.set_defaults(handler=preview_erasure)
+    attractor = commands.add_parser(
+        "attractor",
+        help="Summarize recovery and plot hidden PCA plus the two population comparisons",
+    )
+    attractor.add_argument("--bootstrap-samples", type=int, default=5000)
+    attractor.add_argument(
+        "--replicates",
+        nargs="+",
+        type=int,
+        help="Replica IDs for detailed figures only; statistics use all recorded replicas",
+    )
+    attractor.set_defaults(handler=analyze_attractor)
+    for command in (analysis, attractor):
+        command.add_argument("--target-mse-max", type=float, default=0.001)
+        command.add_argument("--target-iou-min", type=float, default=0.95)
+        command.add_argument("--target-area-min", type=float, default=0.9)
+        command.add_argument("--target-area-max", type=float, default=1.1)
+    for command in (training, running, analysis, plots, comparison, snapshots, preview, attractor):
         command.add_argument(
             "--morphologies", nargs="+", choices=MORPHOLOGIES, default=MORPHOLOGIES
         )
@@ -1787,7 +2076,7 @@ def build_parser() -> argparse.ArgumentParser:
         command.add_argument("--checkpoint-root", default="checkpoints")
         command.add_argument("--data-dir", default="data")
         command.add_argument("--device", default="auto")
-    for command in (running, analysis, plots):
+    for command in (running, analysis, plots, comparison, snapshots, preview, attractor):
         command.add_argument("--output-root", default="reports/experiment_2")
     return parser
 
@@ -1796,11 +2085,8 @@ def main() -> None:
     args = build_parser().parse_args()
     if getattr(args, "bootstrap_samples", 1) <= 0:
         raise ValueError("bootstrap-samples must be positive")
-    if (
-        args.checkpoint_tag in ("", ".", "..")
-        or "/" in args.checkpoint_tag
-        or "\\" in args.checkpoint_tag
-    ):
+    tag = getattr(args, "checkpoint_tag", "default")
+    if tag in ("", ".", "..") or "/" in tag or "\\" in tag:
         raise ValueError("checkpoint-tag must be a single nonempty folder name")
     args.handler(args)
 
