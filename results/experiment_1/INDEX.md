@@ -4,7 +4,7 @@ Research question: can manipulating hidden states delay or prevent the long-term
 
 This folder publishes existing figures and lightweight supporting data for gecko, butterfly, spider, and planaria. No simulations were rerun for this export. Files copied from `reports/experiment_1` are unchanged; the original reports and raw archives remain local.
 
-## Start Here
+## Introduction
 
 Each morphology has 30 paired stochastic evaluation rollouts (IDs 000-029) for each of nine conditions. All conditions within a replicate start from the same mature state and use the same continuation seed. The four morphologies are not pooled as independent replicates. These are rollout replicates, not 30 independently trained models.
 
