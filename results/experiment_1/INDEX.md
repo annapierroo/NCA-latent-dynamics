@@ -6,7 +6,7 @@ This folder publishes existing figures and lightweight supporting data for gecko
 
 ## Introduction
 
-Each morphology has 30 paired stochastic evaluation rollouts (IDs 000-029) for each of nine conditions. All conditions within a replicate start from the same mature state and use the same continuation seed. The four morphologies are not pooled as independent replicates. These are rollout replicates, not 30 independently trained models.
+Each morphology has 30 paired stochastic evaluation rollouts for each of nine conditions. All conditions within a replicate start from the same mature state and use the same continuation seed. The four morphologies are not pooled as independent replicates. These are rollout replicates, not 30 independently trained models.
 
 | Morphology | Population morphology metrics | Hidden / visible dynamics | Representative snapshots | Full-state PCA |
 | --- | --- | --- | --- | --- |
@@ -37,7 +37,7 @@ All interventions act only on hidden channels 4-15 over the entire substrate, in
 - Calibration: 32 unperturbed post-training development rollouts, sampled at steps 64-96, using acceptance quantile 0.95 and alpha threshold 0.1. These are not training batches.
 - Maturity: five consecutive states inside the calibrated MSE, IoU, and area-ratio bounds. Time zero in the plots is target attainment.
 - Evaluation: 10,000 steps after attainment, with stochastic cell-update probability 0.5.
-- Sustained morphology failure: the first of ten consecutive states outside the calibrated bounds. No observed sustained failure by the horizon is recorded as right-censored.
+- Sustained morphology failure: the first of ten consecutive states outside the calibrated bounds.
 - Hidden and visible channel measurements are sampled every ten steps.
 - Substrate: 72 x 72 for gecko, butterfly, and planaria; 72 x 67 for the aspect-preserving spider target.
 
@@ -51,8 +51,7 @@ Exact configuration, thresholds, seeds, input hashes, exclusions, and original r
 
 **Representative snapshots.** Each image shows one actual paired rollout across all conditions, not a pixelwise average or median image. Selection minimizes an IQR-scaled distance to population metric medians across conditions and time, using target-region MSE, IoU, and area ratio; missing measurements are penalized. Scores and selected ID are in `representative_selection.csv`. The PCA diagnostic replica is selected separately and is not necessarily this snapshot replica.
 
-**Final population galleries.** Each `final_t10000__<condition>.png` shows all 30 rollout IDs for that condition at step 10,000. `Numerically diverged` means no valid saved metric state at that time. `Replay not verified` instead means the replay did not reproduce saved measurements within tolerance. The spider control has one such case, replica 016; its [replay diagnostics](spider/final_t10000__baseline.replay_mismatches.csv) are included. Do not count that panel as a demonstrated numerical divergence.
-
+**Final population galleries.** Each `final_t10000__<condition>.png` shows all 30 rollout IDs for that condition at step 10,000. `Numerically diverged` means no valid saved metric state at that time.
 **Development and original snapshots.** `development_to_target.png` shows a single saved development trajectory. Butterfly additionally retains `morphology_snapshots.png`, the original single-rollout montage; it is not the median-selected montage.
 
 **Full-state temporal PCA.** Each PCA folder contains reference-space and pairwise 2D trajectories, pairwise 3D trajectories, coordinates, and metadata for one diagnostic rollout. All nine conditions are included. Representation uses all 16 channels over the full substrate, without spatial pooling. Sampling is every step through 250 and every ten steps afterwards, including the final step when numerically available. Numerical divergence can truncate a trajectory before 10,000.
