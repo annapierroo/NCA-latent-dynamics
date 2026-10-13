@@ -18,7 +18,7 @@ Each selected replica folder contains morphology snapshots, hidden PCA in 2D and
 | Gecko | [003](gecko/persistent/replicate_003/), [025](gecko/persistent/replicate_025/), [029](gecko/persistent/replicate_029/) | [017](gecko/growing_restore/replicate_017/), [013](gecko/growing_restore/replicate_013/), [001](gecko/growing_restore/replicate_001/) |
 | Butterfly | [026](butterfly/persistent/replicate_026/), [010](butterfly/persistent/replicate_010/), [011](butterfly/persistent/replicate_011/) | [023](butterfly/growing_restore/replicate_023/), [006](butterfly/growing_restore/replicate_006/), [018](butterfly/growing_restore/replicate_018/) |
 
-Selection follows the saved `figure_replicas.json`: the three finite control trajectories closest to median time-averaged log1p MSE and mean IoU, with IQR scaling. The same replica is shown for all its perturbations. Selection is illustrative, not a population-level test or a separate best-case selection for each condition.
+Selection follows the saved `figure_replicas.json`: the three finite control trajectories closest to median time-averaged log1p MSE and mean IoU, with IQR scaling.
 
 ## Experimental Protocol
 
@@ -28,17 +28,16 @@ Selection follows the saved `figure_replicas.json`: the three finite control tra
 - Conditions: unperturbed control, hidden Gaussian noise at 10% and 25%, and four anatomical erasures. Noise acts on hidden channels inside the target alpha mask; amplitudes use the pre-pulse per-channel RMS. Erasure zeros all 16 channels in the selected region.
 - Gecko erasures affect leg, head, tail and torso, removing 50 target pixels each (about 9.84%); the selected leg region is completely removed. Butterfly erasures affect upper-left, upper-right and lower-left wing regions, plus the central body, removing 60 target pixels each (about 9.97%). The obsolete lower-right-wing condition is not published.
 
-`provenance.json` records settings, runtime versions, original implementation and input hashes, source protocol, actual erasure sizes, and published conditions. `calibration.json` contains the original development/attainment thresholds. These are distinct from the post-training evaluation thresholds in `analysis_settings.json`.
 
 ## Reading the Results
 
-**Morphological stability.** Global raw RGBA MSE and alpha-mask IoU are measured against the target image, including background. Lines show medians across finite replicas; shaded regions are the 25th-75th percentiles (IQR), not confidence intervals. The vertical dashed line marks step 500. Missing or numerically divergent observations are not imputed.
+**Morphological stability.** Global raw RGBA MSE and alpha-mask IoU are measured against the target image, including background. Lines show medians across finite replicas; shaded regions are the 25th-75th percentiles (IQR). The vertical dashed line marks step 500.
 
 **Hidden deviation.** RMS distance uses all hidden-state values and compares a perturbed trajectory with its own paired unperturbed control at the same step. Zero means agreement with that control, not necessarily recovery of the target morphology. Raw hidden distances can have different scales across trained models.
 
-**PCA.** The basis is fitted separately per model and replica using only hidden reference states before the pulse. Steps 250-374 fit the basis and channel RMS scales; steps 375-499 provide held-out residual diagnostics. All conditions of that model/replica share the same basis; axes are not shared across models or replicas. Axis percentages report explained variance. A compact projection or apparent loop does not establish a mathematical attractor or a basin boundary.
+**PCA.** The basis is fitted separately per model and replica using only hidden reference states before the pulse. Steps 250-374 fit the basis and channel RMS scales; steps 375-499 provide held-out residual diagnostics. All conditions of that model/replica share the same basis.
 
-**Snapshots.** These are actual RGBA frames from the selected replica, not average or median images. The column labelled `t=500, pre` precedes the intervention; `t=500` is immediately after it. Snapshot filenames are normalized in this export; image contents are unchanged.
+**Snapshots.** These are actual RGBA frames from the selected replica, not average or median images. The column labelled `t=500, pre` precedes the intervention; `t=500` is immediately after it. 
 
 **Recovery statistics.** Post-pulse morphology evaluation requires MSE <= 0.001, alpha IoU >= 0.95, and area ratio between 0.9 and 1.1. After an exit, sustained recovery requires 20 consecutive target states and at least 95% of the final 200 steps inside the target regime. Never-exited trajectories are reported separately. The CSV column `median_recovery_delay_after_exit` measures delay from the pulse among trajectories that exited and recovered, not delay from the first exit. Unrecovered trajectories are not assigned zero recovery time.
 
@@ -50,5 +49,3 @@ Paired hidden return requires RMS distance <= 10% of the initial pulse distance 
 - `paired_model_comparison.csv`: Growing-minus-Persistent success fractions on matched eligible rollout IDs, 5,000 paired bootstrap samples for 95% intervals, exact McNemar p-values, and Holm correction within each morphology/checkpoint pair. Morphologies are not pooled.
 - `analysis_settings.json`, `figure_replicas.json`, `exclusions.json`, `calibration.json`, `provenance.json`: evaluation definitions, illustrative selection, exclusions, development calibration, and run provenance.
 - Selected `metadata.json`: seeds, maturity step, hidden PCA diagnostics, perturbation details, and validation information for the butterfly erasure update. Local machine paths are omitted.
-
-Raw `.npz` trajectories, checkpoints, full per-replica recovery tables, and the other 27 replica folders per model remain local. This bundle is for viewing and interpretation; it is not a complete raw-data deposit and cannot regenerate all figures by itself. Uncommitted code changes and the proposed projected-flow/recovery-map analysis are not part of this publication.
