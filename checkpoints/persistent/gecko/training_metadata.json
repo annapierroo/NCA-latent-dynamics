@@ -1,0 +1,24 @@
+{
+  "training": {
+    "training_iterations": 8000,
+    "pool_size": 1024,
+    "batch_size": 8,
+    "train_steps_min": 64,
+    "train_steps_max": 96,
+    "update_probability": 0.5,
+    "damage_samples": 0,
+    "learning_rate": 0.002,
+    "lr_decay_step": 2000,
+    "lr_decay_factor": 0.1,
+    "mode": "persistent"
+  },
+  "seed": 0,
+  "device": "mps",
+  "target_sha256": "ed2a65721740499ae2e7744b535c02bdbb5781915a8af4ea9741e9c3701c383a",
+  "checkpoint_sha256": "f89600ef150279c68c1cbcf820752d23ced66f99baf542e9ff8501da03495f7c",
+  "torch": "2.14.0",
+  "channels": 16,
+  "hidden_size": 128,
+  "target_size": 40,
+  "padding": 16
+}
