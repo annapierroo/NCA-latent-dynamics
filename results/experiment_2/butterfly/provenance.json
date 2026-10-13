@@ -1,0 +1,122 @@
+{
+  "morphology": "butterfly",
+  "checkpoint_tag": "default",
+  "recorded_protocol": "persistent_vs_mature_restore_primitive_erasure_v4",
+  "settings": {
+    "perturb_step": 500,
+    "horizon": 10000,
+    "reference_start": 250,
+    "mature_start": 64,
+    "mature_stop": 96,
+    "development_limit": 256,
+    "attainment_patience": 5,
+    "recovery_patience": 20,
+    "calibration_replicates": 32,
+    "acceptance_quantile": 0.95,
+    "channels": 16,
+    "hidden_size": 128,
+    "target_size": 40,
+    "padding": 16,
+    "fire_rate": 0.5,
+    "beta": 0.1,
+    "alpha_threshold": 0.1,
+    "pca_components": 12,
+    "seed": 50000,
+    "snapshot_replicates": 30,
+    "erase_fraction": null
+  },
+  "checkpoint_hashes": {
+    "persistent": "4fd6623f6703725ef8a3c8617f7963be377686c5bb06337714f44d009144c825",
+    "growing_restore": "90bf243414dfa98d9c630f1ab4e3ddae65a8f61f02fa69c97ce29b657652fa77"
+  },
+  "target_hash": "e39f9a559798544beda6015dbef6b3d03353367d6d9aa8c334b03c9b99d9f563",
+  "target_file": "data/butterfly.png",
+  "runtime": {
+    "device": "mps",
+    "python": "3.13.7",
+    "torch": "2.14.0",
+    "numpy": "2.5.3"
+  },
+  "recorded_implementation_sha256": "28416bbe1906d2e1e43519c76eb0e05b348582fad90b591a08544adf61529229",
+  "published_branches": [
+    "control",
+    "noise_0p1",
+    "noise_0p25",
+    "erase_upper_left_wing",
+    "erase_upper_right_wing",
+    "erase_lower_left_wing",
+    "erase_central_body"
+  ],
+  "omitted_recorded_branches": [],
+  "erasure_regions": {
+    "erase_upper_left_wing": {
+      "primitive": "upper_left_wing",
+      "requested_target_fraction": 0.1,
+      "actual_target_fraction": 0.09966777408637874,
+      "removed_target_pixels": 60,
+      "primitive_target_pixels": 158,
+      "removed_primitive_fraction": 0.379746835443038,
+      "center_yx": [
+        29.26860841423948,
+        25.385113268608414
+      ]
+    },
+    "erase_upper_right_wing": {
+      "primitive": "upper_right_wing",
+      "requested_target_fraction": 0.1,
+      "actual_target_fraction": 0.09966777408637874,
+      "removed_target_pixels": 60,
+      "primitive_target_pixels": 158,
+      "removed_primitive_fraction": 0.379746835443038,
+      "center_yx": [
+        29.26860841423948,
+        46.61488673139158
+      ]
+    },
+    "erase_lower_left_wing": {
+      "primitive": "lower_left_wing",
+      "requested_target_fraction": 0.1,
+      "actual_target_fraction": 0.09966777408637874,
+      "removed_target_pixels": 60,
+      "primitive_target_pixels": 101,
+      "removed_primitive_fraction": 0.594059405940594,
+      "center_yx": [
+        41.24271844660194,
+        29.26860841423948
+      ]
+    },
+    "erase_central_body": {
+      "primitive": "central_body",
+      "requested_target_fraction": 0.1,
+      "actual_target_fraction": 0.09966777408637874,
+      "removed_target_pixels": 60,
+      "primitive_target_pixels": 66,
+      "removed_primitive_fraction": 0.9090909090909091,
+      "center_yx": [
+        33.152103559870554,
+        36.0
+      ]
+    }
+  },
+  "selected_replicas": {
+    "persistent": [
+      26,
+      10,
+      11
+    ],
+    "growing_restore": [
+      23,
+      6,
+      18
+    ]
+  },
+  "recorded_population_counts": {
+    "persistent": [
+      30
+    ],
+    "growing_restore": [
+      30
+    ]
+  },
+  "raw_trajectories_included": false
+}

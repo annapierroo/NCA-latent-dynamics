@@ -1,0 +1,15 @@
+{
+  "replicas": {
+    "persistent": [
+      3,
+      25,
+      29
+    ],
+    "growing_restore": [
+      17,
+      13,
+      1
+    ]
+  },
+  "selection": "Three finite control trajectories closest to median log1p MSE and mean IoU, IQR-scaled; the same replica is used for all its perturbations. Selection is illustrative, not inference."
+}

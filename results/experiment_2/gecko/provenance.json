@@ -1,0 +1,124 @@
+{
+  "morphology": "gecko",
+  "checkpoint_tag": "default",
+  "recorded_protocol": "persistent_vs_mature_restore_primitive_erasure_v2",
+  "settings": {
+    "perturb_step": 500,
+    "horizon": 10000,
+    "reference_start": 250,
+    "mature_start": 64,
+    "mature_stop": 96,
+    "development_limit": 256,
+    "attainment_patience": 5,
+    "recovery_patience": 20,
+    "calibration_replicates": 32,
+    "acceptance_quantile": 0.95,
+    "channels": 16,
+    "hidden_size": 128,
+    "target_size": 40,
+    "padding": 16,
+    "fire_rate": 0.5,
+    "beta": 0.1,
+    "alpha_threshold": 0.1,
+    "pca_components": 12,
+    "seed": 50000,
+    "snapshot_replicates": 30,
+    "erase_fraction": null
+  },
+  "checkpoint_hashes": {
+    "persistent": "f89600ef150279c68c1cbcf820752d23ced66f99baf542e9ff8501da03495f7c",
+    "growing_restore": "602847e4544077a9022b7678231e91ad26d5780cf3936ebd37eff37a0f39f63d"
+  },
+  "target_hash": "ed2a65721740499ae2e7744b535c02bdbb5781915a8af4ea9741e9c3701c383a",
+  "target_file": "data/gecko.png",
+  "runtime": {
+    "device": "mps",
+    "python": "3.13.7",
+    "torch": "2.14.0",
+    "numpy": "2.5.3"
+  },
+  "recorded_implementation_sha256": "e6654197dda03d337cbd8b029de109e932711d247f590b7a053243e96435843e",
+  "published_branches": [
+    "control",
+    "noise_0p1",
+    "noise_0p25",
+    "erase_leg",
+    "erase_head",
+    "erase_tail",
+    "erase_torso"
+  ],
+  "omitted_recorded_branches": [
+    "independent_control"
+  ],
+  "erasure_regions": {
+    "erase_leg": {
+      "primitive": "leg",
+      "requested_target_fraction": 0.0984251968503937,
+      "actual_target_fraction": 0.0984251968503937,
+      "removed_target_pixels": 50,
+      "primitive_target_pixels": 50,
+      "removed_primitive_fraction": 1.0,
+      "center_yx": [
+        45.5,
+        33.83333333333333
+      ]
+    },
+    "erase_head": {
+      "primitive": "head",
+      "requested_target_fraction": 0.0984251968503937,
+      "actual_target_fraction": 0.0984251968503937,
+      "removed_target_pixels": 50,
+      "primitive_target_pixels": 101,
+      "removed_primitive_fraction": 0.49504950495049505,
+      "center_yx": [
+        18.333333333333332,
+        26.833333333333332
+      ]
+    },
+    "erase_tail": {
+      "primitive": "tail",
+      "requested_target_fraction": 0.0984251968503937,
+      "actual_target_fraction": 0.0984251968503937,
+      "removed_target_pixels": 50,
+      "primitive_target_pixels": 85,
+      "removed_primitive_fraction": 0.5882352941176471,
+      "center_yx": [
+        53.0,
+        50.666666666666664
+      ]
+    },
+    "erase_torso": {
+      "primitive": "torso",
+      "requested_target_fraction": 0.0984251968503937,
+      "actual_target_fraction": 0.0984251968503937,
+      "removed_target_pixels": 50,
+      "primitive_target_pixels": 127,
+      "removed_primitive_fraction": 0.3937007874015748,
+      "center_yx": [
+        35.166666666666664,
+        35.83333333333333
+      ]
+    }
+  },
+  "selected_replicas": {
+    "persistent": [
+      3,
+      25,
+      29
+    ],
+    "growing_restore": [
+      17,
+      13,
+      1
+    ]
+  },
+  "recorded_population_counts": {
+    "persistent": [
+      30
+    ],
+    "growing_restore": [
+      30
+    ]
+  },
+  "raw_trajectories_included": false
+}

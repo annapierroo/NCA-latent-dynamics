@@ -1,0 +1,12 @@
+{
+  "target_mse_max": 0.00021451389415200092,
+  "alpha_iou_min": 0.9787772286728721,
+  "area_ratio_min": 0.9966777408637874,
+  "area_ratio_max": 1.0166112956810631,
+  "acceptance_quantile": 0.95,
+  "definition": "Equal numbers of independent development rollouts per system; within-rollout snapshots are temporally correlated. Shared per morphology/checkpoint tag. Quantiles are empirical, not accuracy guarantees.",
+  "calibration_steps": [
+    64,
+    96
+  ]
+}

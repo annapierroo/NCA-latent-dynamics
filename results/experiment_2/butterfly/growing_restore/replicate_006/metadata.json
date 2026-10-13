@@ -1,0 +1,126 @@
+{
+  "status": "complete",
+  "system": "growing_restore",
+  "replicate": 6,
+  "mature_step": 68,
+  "development_seed": 50006,
+  "continuation_seed": 1050006,
+  "perturbation_seed": 3050006,
+  "local_pca": {
+    "hidden": {
+      "residual_limit": 0.014687568982606349,
+      "explained_variance": 0.6622656614504331,
+      "components_to_95_or_cap": 12,
+      "reached_95_percent": false,
+      "pre_mean_shift_in_radii": 0.9491708681906097,
+      "pre_speed_ratio": 1.091063823881476,
+      "approximately_stationary_heuristic": true
+    }
+  },
+  "fit_steps_inclusive": [
+    250,
+    374
+  ],
+  "validation_steps_inclusive": [
+    375,
+    499
+  ],
+  "perturbations": {
+    "noise_0p1": {
+      "relative_sigma": 0.1,
+      "channel_sigma": [
+        0.048774927533167055,
+        0.07678959145185521,
+        0.07146405842041073,
+        0.0697267478451563,
+        0.04938859992418551,
+        0.06491665059232847,
+        0.06536459637168894,
+        0.09575463838667037,
+        0.0726460425232528,
+        0.05211771617596109,
+        0.07282251902432617,
+        0.06701649730087628
+      ],
+      "actual_rms_in_target": 0.06911846394648921
+    },
+    "noise_0p25": {
+      "relative_sigma": 0.25,
+      "channel_sigma": [
+        0.12193731883291763,
+        0.191973978629638,
+        0.1786601460510268,
+        0.17431686961289075,
+        0.12347149981046376,
+        0.16229162648082118,
+        0.16341149092922233,
+        0.23938659596667589,
+        0.181615106308132,
+        0.1302942904399027,
+        0.1820562975608154,
+        0.1675412432521907
+      ],
+      "actual_rms_in_target": 0.17279615986622301
+    },
+    "erase_upper_left_wing": {
+      "primitive": "upper_left_wing",
+      "requested_target_fraction": 0.1,
+      "actual_target_fraction": 0.09966777408637874,
+      "removed_target_pixels": 60,
+      "primitive_target_pixels": 158,
+      "removed_primitive_fraction": 0.379746835443038,
+      "center_yx": [
+        29.26860841423948,
+        25.385113268608414
+      ],
+      "removed_alive_fraction": 0.09771986970684039
+    },
+    "erase_upper_right_wing": {
+      "primitive": "upper_right_wing",
+      "requested_target_fraction": 0.1,
+      "actual_target_fraction": 0.09966777408637874,
+      "removed_target_pixels": 60,
+      "primitive_target_pixels": 158,
+      "removed_primitive_fraction": 0.379746835443038,
+      "center_yx": [
+        29.26860841423948,
+        46.61488673139158
+      ],
+      "removed_alive_fraction": 0.09771986970684039
+    },
+    "erase_lower_left_wing": {
+      "primitive": "lower_left_wing",
+      "requested_target_fraction": 0.1,
+      "actual_target_fraction": 0.09966777408637874,
+      "removed_target_pixels": 60,
+      "primitive_target_pixels": 101,
+      "removed_primitive_fraction": 0.594059405940594,
+      "center_yx": [
+        41.24271844660194,
+        29.26860841423948
+      ],
+      "removed_alive_fraction": 0.09771986970684039
+    },
+    "erase_central_body": {
+      "primitive": "central_body",
+      "requested_target_fraction": 0.1,
+      "actual_target_fraction": 0.09966777408637874,
+      "removed_target_pixels": 60,
+      "primitive_target_pixels": 66,
+      "removed_primitive_fraction": 0.9090909090909091,
+      "center_yx": [
+        33.152103559870554,
+        36.0
+      ],
+      "removed_alive_fraction": 0.09771986970684039
+    }
+  },
+  "source_metadata_sha256": "9b759a7817b3eecd09b50b8d22bb888659d38d63dbaaeeedf422844432356eba",
+  "erasure_update_validation": {
+    "removed_condition": "erase_lower_right_wing",
+    "new_condition": "erase_central_body",
+    "source_manifest_sha256": "9612a77db304cc98ffa3d92239be49acb34ea71d63609e8ead598c6a5e1a6c44",
+    "source_archive_sha256": "021255f28aed19a7170e473a18d746b83b646324e592580548eef0d5d30f9a1f",
+    "control_replay_verified": true
+  }
+}
