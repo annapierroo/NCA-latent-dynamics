@@ -1,13 +1,18 @@
 {
   "experiment": "experiment_1",
-  "created_utc": "2026-09-29T12:04:03.873695+00:00",
-  "checkpoint": "/Users/anna/Downloads/Tirocinio Norvegia/Progetto Tesi/checkpoints/growing/gecko/model.pt",
+  "created_utc": "2026-10-15T15:44:23.657175+00:00",
+  "checkpoint": "/Users/anna/Library/Mobile Documents/com~apple~CloudDocs/Tirocinio Norvegia/Progetto Tesi/checkpoints/growing/gecko/model.pt",
   "checkpoint_sha256": "602847e4544077a9022b7678231e91ad26d5780cf3936ebd37eff37a0f39f63d",
-  "target": "/Users/anna/Downloads/Tirocinio Norvegia/Progetto Tesi/data/gecko.png",
+  "target": "/Users/anna/Library/Mobile Documents/com~apple~CloudDocs/Tirocinio Norvegia/Progetto Tesi/data/gecko.png",
   "target_sha256": "ed2a65721740499ae2e7744b535c02bdbb5781915a8af4ea9741e9c3701c383a",
   "device": "mps",
   "python": "3.13.7",
   "platform": "macOS-14.6-arm64-arm-64bit-Mach-O",
   "torch": "2.14.0",
-  "numpy": "2.5.3"
+  "numpy": "2.5.3",
+  "measurement_revision": "cpu-float64-after-transfer-v1",
+  "measurement_precision": "float64 storage; CPU float64 reductions when float32 squares or sums risk overflow",
+  "protocol": "experiment_1_v3",
+  "run_signature": "98d2423df8fdfd21824c9e6c8800ae217c6c2ce8a6552bb6570b3807b837a99b",
+  "mask": "Fixed target alpha mask; morphology freeze affects hidden channels only."
 }

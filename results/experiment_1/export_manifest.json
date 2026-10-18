@@ -1,0 +1,750 @@
+{
+  "exported_utc": "2026-10-18T08:50:01.836579+00:00",
+  "protocol": "experiment_1_v3",
+  "measurement_revision": "cpu-float64-after-transfer-v1",
+  "source_root": "/Users/anna/Downloads/NCA_recovery/experiment_1_corrected_2026-10-17",
+  "simulation_rerun": false,
+  "raw_archives_included": false,
+  "pca_included": false,
+  "runtime_module_sha256": "f9390f8bcdad3d6b401f0e052226b5e7dc9f5585bae75d7c017c6893e7b24721",
+  "conditions": [
+    "baseline",
+    "hidden_freeze",
+    "hidden_freeze_morphology",
+    "hidden_freeze_first_6",
+    "restore_beta_0p1",
+    "periodic_reset_150",
+    "restore_development_step_16_beta_0p1",
+    "restore_development_step_16_period_150"
+  ],
+  "morphologies": {
+    "gecko": {
+      "run_signature": "98d2423df8fdfd21824c9e6c8800ae217c6c2ce8a6552bb6570b3807b837a99b",
+      "replicates": 30,
+      "conditions": 8,
+      "summary_rows": 240,
+      "excluded": 0,
+      "representative_replica": 14,
+      "png_files": 13,
+      "horizon": 10000
+    },
+    "butterfly": {
+      "run_signature": "265e1086159696b1b9100176dfd2527895a110d23dbe0150270019a3fb4fa641",
+      "replicates": 30,
+      "conditions": 8,
+      "summary_rows": 240,
+      "excluded": 0,
+      "representative_replica": 28,
+      "png_files": 13,
+      "horizon": 10000
+    },
+    "planaria": {
+      "run_signature": "0ece96cb1015bbf657176288410e065f15ebc3cc5a4148d5966dac65b9a5d4e2",
+      "replicates": 30,
+      "conditions": 8,
+      "summary_rows": 240,
+      "excluded": 0,
+      "representative_replica": 25,
+      "png_files": 13,
+      "horizon": 10000
+    },
+    "spider": {
+      "run_signature": "cfe7fef5608075a0c7d6dda9c49210302bf8e1437fe2e9b722387aeab71be188",
+      "replicates": 30,
+      "conditions": 8,
+      "summary_rows": 240,
+      "excluded": 0,
+      "representative_replica": 7,
+      "png_files": 13,
+      "horizon": 10000
+    }
+  },
+  "files": [
+    {
+      "path": "INDEX.md",
+      "sha256": "951909d5d65c00ef842ec12289c29e58112c04a99fbde2cd122e3de00e38a9e5",
+      "bytes": 7336,
+      "kind": "publication_index"
+    },
+    {
+      "path": "butterfly/conditions.csv",
+      "sha256": "1eb8e01481ea1ae9a4c5fb638ea13275c8efea5002264f55dbcf7ef7003e99de",
+      "bytes": 763,
+      "kind": "unchanged_copy",
+      "source": "butterfly/conditions.csv",
+      "source_sha256": "1eb8e01481ea1ae9a4c5fb638ea13275c8efea5002264f55dbcf7ef7003e99de"
+    },
+    {
+      "path": "butterfly/core_morphology_metrics.png",
+      "sha256": "407b054861ea166411ef2836d480d09ecbfad8d2e841c480893672a14f76d0b9",
+      "bytes": 565377,
+      "kind": "unchanged_copy",
+      "source": "butterfly/analysis/core_morphology_metrics.png",
+      "source_sha256": "407b054861ea166411ef2836d480d09ecbfad8d2e841c480893672a14f76d0b9"
+    },
+    {
+      "path": "butterfly/development_to_target.png",
+      "sha256": "e34ef6acfd27f4c6cb9e358ff10dc765151edb36dd995c333abf4ecb79e6f05e",
+      "bytes": 26855,
+      "kind": "unchanged_copy",
+      "source": "butterfly/analysis/development_to_target.png",
+      "source_sha256": "e34ef6acfd27f4c6cb9e358ff10dc765151edb36dd995c333abf4ecb79e6f05e"
+    },
+    {
+      "path": "butterfly/excluded_replicates.json",
+      "sha256": "37807601b95d3c70976235c19ea21418ed56b06d38f927b8c1503d75b3f4ad7d",
+      "bytes": 21,
+      "kind": "unchanged_copy",
+      "source": "butterfly/excluded_replicates.json",
+      "source_sha256": "37807601b95d3c70976235c19ea21418ed56b06d38f927b8c1503d75b3f4ad7d"
+    },
+    {
+      "path": "butterfly/final_t10000__baseline.png",
+      "sha256": "fc80e3fdae4c10e0156042aa83b30974891dafafa72c268fd568df98cc5f924c",
+      "bytes": 778939,
+      "kind": "unchanged_copy",
+      "source": "butterfly/analysis/final_t10000__baseline.png",
+      "source_sha256": "fc80e3fdae4c10e0156042aa83b30974891dafafa72c268fd568df98cc5f924c"
+    },
+    {
+      "path": "butterfly/final_t10000__hidden_freeze.png",
+      "sha256": "fcb0013ad7458f58026b921bda98f0daf6be8026c044c8ccf0f67434941c140e",
+      "bytes": 352516,
+      "kind": "unchanged_copy",
+      "source": "butterfly/analysis/final_t10000__hidden_freeze.png",
+      "source_sha256": "fcb0013ad7458f58026b921bda98f0daf6be8026c044c8ccf0f67434941c140e"
+    },
+    {
+      "path": "butterfly/final_t10000__hidden_freeze_first_6.png",
+      "sha256": "970be5bba06ebc7ed9931d6679658507bd6ceaf511b0733babe4fe487683fdb3",
+      "bytes": 452750,
+      "kind": "unchanged_copy",
+      "source": "butterfly/analysis/final_t10000__hidden_freeze_first_6.png",
+      "source_sha256": "970be5bba06ebc7ed9931d6679658507bd6ceaf511b0733babe4fe487683fdb3"
+    },
+    {
+      "path": "butterfly/final_t10000__hidden_freeze_morphology.png",
+      "sha256": "1109406c7441501a8854091041943d0a84dcae80421178f12f6652ee16f4b92e",
+      "bytes": 418074,
+      "kind": "unchanged_copy",
+      "source": "butterfly/analysis/final_t10000__hidden_freeze_morphology.png",
+      "source_sha256": "1109406c7441501a8854091041943d0a84dcae80421178f12f6652ee16f4b92e"
+    },
+    {
+      "path": "butterfly/final_t10000__periodic_reset_150.png",
+      "sha256": "ceeef8bf5487754b81054b12fad667e74c6ad1ba5296de6c60b7d43dacd8c839",
+      "bytes": 785394,
+      "kind": "unchanged_copy",
+      "source": "butterfly/analysis/final_t10000__periodic_reset_150.png",
+      "source_sha256": "ceeef8bf5487754b81054b12fad667e74c6ad1ba5296de6c60b7d43dacd8c839"
+    },
+    {
+      "path": "butterfly/final_t10000__restore_beta_0p1.png",
+      "sha256": "da192cd4074b33809ac08417bcfdc4f6521329aebc659a77446caff460ecc805",
+      "bytes": 613088,
+      "kind": "unchanged_copy",
+      "source": "butterfly/analysis/final_t10000__restore_beta_0p1.png",
+      "source_sha256": "da192cd4074b33809ac08417bcfdc4f6521329aebc659a77446caff460ecc805"
+    },
+    {
+      "path": "butterfly/final_t10000__restore_development_step_16_beta_0p1.png",
+      "sha256": "3de48ff1c2c4106c5f8b438185cce7697150f40ced1058086120f342430024dd",
+      "bytes": 596300,
+      "kind": "unchanged_copy",
+      "source": "butterfly/analysis/final_t10000__restore_development_step_16_beta_0p1.png",
+      "source_sha256": "3de48ff1c2c4106c5f8b438185cce7697150f40ced1058086120f342430024dd"
+    },
+    {
+      "path": "butterfly/final_t10000__restore_development_step_16_period_150.png",
+      "sha256": "ae0e9dd177e0eaca04dfd2b80d76258961afd61b13720e2d8aab91a7cf060697",
+      "bytes": 784842,
+      "kind": "unchanged_copy",
+      "source": "butterfly/analysis/final_t10000__restore_development_step_16_period_150.png",
+      "source_sha256": "ae0e9dd177e0eaca04dfd2b80d76258961afd61b13720e2d8aab91a7cf060697"
+    },
+    {
+      "path": "butterfly/hidden_channel_dynamics.png",
+      "sha256": "8d23bc9943e8cd8d6590176455f5ff10644498934116162320bc8b832cb7ccb2",
+      "bytes": 457044,
+      "kind": "unchanged_copy",
+      "source": "butterfly/analysis/hidden_channel_dynamics.png",
+      "source_sha256": "8d23bc9943e8cd8d6590176455f5ff10644498934116162320bc8b832cb7ccb2"
+    },
+    {
+      "path": "butterfly/metadata.json",
+      "sha256": "20aae63a15eda8fb094bbf5c75b204bdf266e248092b98052ac55f8c39fef36c",
+      "bytes": 1049,
+      "kind": "unchanged_copy",
+      "source": "butterfly/metadata.json",
+      "source_sha256": "20aae63a15eda8fb094bbf5c75b204bdf266e248092b98052ac55f8c39fef36c"
+    },
+    {
+      "path": "butterfly/morphology_snapshots.png",
+      "sha256": "379de790cfe51916d026f151626f190c23198a44b05c85211dffa77bed9807ca",
+      "bytes": 667084,
+      "kind": "unchanged_copy",
+      "source": "butterfly/analysis/morphology_snapshots.png",
+      "source_sha256": "379de790cfe51916d026f151626f190c23198a44b05c85211dffa77bed9807ca"
+    },
+    {
+      "path": "butterfly/n_valid_changes.csv",
+      "sha256": "a2489bf6838718a6e8f2e478f5e6e41c5d171eac553a20bdf991c3e0173ca538",
+      "bytes": 572,
+      "kind": "piecewise_constant_valid_counts",
+      "source": "butterfly/analysis/core_morphology_metrics_n_valid.csv",
+      "source_sha256": "29107a283647ff14771648e0e6532dff91bb9e1312628b8bce8a3818a58a955d",
+      "source_rows": 80008,
+      "exported_rows": 16
+    },
+    {
+      "path": "butterfly/per_run_summary.csv",
+      "sha256": "577809591a46e330d35b1c2380af3b9859e048adc6648075f00b50ccaed959a2",
+      "bytes": 71097,
+      "kind": "unchanged_copy",
+      "source": "butterfly/per_run_summary.csv",
+      "source_sha256": "577809591a46e330d35b1c2380af3b9859e048adc6648075f00b50ccaed959a2"
+    },
+    {
+      "path": "butterfly/representative_selection.csv",
+      "sha256": "b99e1fba90507074357cea69e851d99b1800982b15fd9313b3a7315f7a57d94e",
+      "bytes": 907,
+      "kind": "unchanged_copy",
+      "source": "butterfly/analysis/representative_selection.csv",
+      "source_sha256": "b99e1fba90507074357cea69e851d99b1800982b15fd9313b3a7315f7a57d94e"
+    },
+    {
+      "path": "butterfly/resolved_config.json",
+      "sha256": "591d0a65eae9371e77c0062d638b7cc5a4533dbb235643a0a9a1d9634efffcc9",
+      "bytes": 1327,
+      "kind": "unchanged_copy",
+      "source": "butterfly/resolved_config.json",
+      "source_sha256": "591d0a65eae9371e77c0062d638b7cc5a4533dbb235643a0a9a1d9634efffcc9"
+    },
+    {
+      "path": "butterfly/target_regime.json",
+      "sha256": "55986267b8c1d59d553a5c00ee484605a15e17371f49720e80e453e6e776fc33",
+      "bytes": 195,
+      "kind": "unchanged_copy",
+      "source": "butterfly/target_regime.json",
+      "source_sha256": "55986267b8c1d59d553a5c00ee484605a15e17371f49720e80e453e6e776fc33"
+    },
+    {
+      "path": "butterfly/visible_channel_dynamics.png",
+      "sha256": "21e9155acbfcfb026bb49f33499702b67868624a46820f95206b095e5f9407e2",
+      "bytes": 327566,
+      "kind": "unchanged_copy",
+      "source": "butterfly/analysis/visible_channel_dynamics.png",
+      "source_sha256": "21e9155acbfcfb026bb49f33499702b67868624a46820f95206b095e5f9407e2"
+    },
+    {
+      "path": "gecko/conditions.csv",
+      "sha256": "1eb8e01481ea1ae9a4c5fb638ea13275c8efea5002264f55dbcf7ef7003e99de",
+      "bytes": 763,
+      "kind": "unchanged_copy",
+      "source": "gecko/conditions.csv",
+      "source_sha256": "1eb8e01481ea1ae9a4c5fb638ea13275c8efea5002264f55dbcf7ef7003e99de"
+    },
+    {
+      "path": "gecko/core_morphology_metrics.png",
+      "sha256": "e97400b47e5089b0e1da26c74c99b0a3639aa0a7d9bb2261e374c47c79aaab48",
+      "bytes": 542810,
+      "kind": "unchanged_copy",
+      "source": "gecko/analysis/core_morphology_metrics.png",
+      "source_sha256": "e97400b47e5089b0e1da26c74c99b0a3639aa0a7d9bb2261e374c47c79aaab48"
+    },
+    {
+      "path": "gecko/development_to_target.png",
+      "sha256": "9cfc6c0421ef7c93432f921be3f655a61d77c1e20f4e08afa0a6492c305ed9fe",
+      "bytes": 27325,
+      "kind": "unchanged_copy",
+      "source": "gecko/analysis/development_to_target.png",
+      "source_sha256": "9cfc6c0421ef7c93432f921be3f655a61d77c1e20f4e08afa0a6492c305ed9fe"
+    },
+    {
+      "path": "gecko/excluded_replicates.json",
+      "sha256": "37807601b95d3c70976235c19ea21418ed56b06d38f927b8c1503d75b3f4ad7d",
+      "bytes": 21,
+      "kind": "unchanged_copy",
+      "source": "gecko/excluded_replicates.json",
+      "source_sha256": "37807601b95d3c70976235c19ea21418ed56b06d38f927b8c1503d75b3f4ad7d"
+    },
+    {
+      "path": "gecko/final_t10000__baseline.png",
+      "sha256": "4677218bfe5249d7fcd48b4dd249c7324b526e453e961fc72e6ce4ce987ce169",
+      "bytes": 572866,
+      "kind": "unchanged_copy",
+      "source": "gecko/analysis/final_t10000__baseline.png",
+      "source_sha256": "4677218bfe5249d7fcd48b4dd249c7324b526e453e961fc72e6ce4ce987ce169"
+    },
+    {
+      "path": "gecko/final_t10000__hidden_freeze.png",
+      "sha256": "7709ffca8b5d62c69b899256b76f5a0d88660d179de6934b280479e1ef575dca",
+      "bytes": 279023,
+      "kind": "unchanged_copy",
+      "source": "gecko/analysis/final_t10000__hidden_freeze.png",
+      "source_sha256": "7709ffca8b5d62c69b899256b76f5a0d88660d179de6934b280479e1ef575dca"
+    },
+    {
+      "path": "gecko/final_t10000__hidden_freeze_first_6.png",
+      "sha256": "77870b125517bc3fd90f1e3158dbef06e08d7fd46e8472bbd63cf1526f68d7eb",
+      "bytes": 73495,
+      "kind": "unchanged_copy",
+      "source": "gecko/analysis/final_t10000__hidden_freeze_first_6.png",
+      "source_sha256": "77870b125517bc3fd90f1e3158dbef06e08d7fd46e8472bbd63cf1526f68d7eb"
+    },
+    {
+      "path": "gecko/final_t10000__hidden_freeze_morphology.png",
+      "sha256": "031414d8982fc69aced763860767f73946ee7d1f758d8ea3506c2ebbe1a51261",
+      "bytes": 185067,
+      "kind": "unchanged_copy",
+      "source": "gecko/analysis/final_t10000__hidden_freeze_morphology.png",
+      "source_sha256": "031414d8982fc69aced763860767f73946ee7d1f758d8ea3506c2ebbe1a51261"
+    },
+    {
+      "path": "gecko/final_t10000__periodic_reset_150.png",
+      "sha256": "7aee39209f595eb9d9777d4f5805b5ea431f607bad4bfa7774c0b805167a9f60",
+      "bytes": 204368,
+      "kind": "unchanged_copy",
+      "source": "gecko/analysis/final_t10000__periodic_reset_150.png",
+      "source_sha256": "7aee39209f595eb9d9777d4f5805b5ea431f607bad4bfa7774c0b805167a9f60"
+    },
+    {
+      "path": "gecko/final_t10000__restore_beta_0p1.png",
+      "sha256": "15f7859cc94f2f4c4ebb3583398201eb1751f58085767ed0fceb5dead9749649",
+      "bytes": 188694,
+      "kind": "unchanged_copy",
+      "source": "gecko/analysis/final_t10000__restore_beta_0p1.png",
+      "source_sha256": "15f7859cc94f2f4c4ebb3583398201eb1751f58085767ed0fceb5dead9749649"
+    },
+    {
+      "path": "gecko/final_t10000__restore_development_step_16_beta_0p1.png",
+      "sha256": "c3a88517a53cecc2ec50beda98f62fb5135b3fb869956f840acec8db4c0f47a0",
+      "bytes": 170638,
+      "kind": "unchanged_copy",
+      "source": "gecko/analysis/final_t10000__restore_development_step_16_beta_0p1.png",
+      "source_sha256": "c3a88517a53cecc2ec50beda98f62fb5135b3fb869956f840acec8db4c0f47a0"
+    },
+    {
+      "path": "gecko/final_t10000__restore_development_step_16_period_150.png",
+      "sha256": "f12350648fa769deaced01c9d4387732be6e61a8d88df655334db391a65752ef",
+      "bytes": 191562,
+      "kind": "unchanged_copy",
+      "source": "gecko/analysis/final_t10000__restore_development_step_16_period_150.png",
+      "source_sha256": "f12350648fa769deaced01c9d4387732be6e61a8d88df655334db391a65752ef"
+    },
+    {
+      "path": "gecko/hidden_channel_dynamics.png",
+      "sha256": "c1236da42eee4bebff87da4b456738822e02c8d6754bfe0f12e52812845fb090",
+      "bytes": 466964,
+      "kind": "unchanged_copy",
+      "source": "gecko/analysis/hidden_channel_dynamics.png",
+      "source_sha256": "c1236da42eee4bebff87da4b456738822e02c8d6754bfe0f12e52812845fb090"
+    },
+    {
+      "path": "gecko/metadata.json",
+      "sha256": "5640535574aa223d56f9041a33323aed6e5525b90a6b486d5cc2034734e9610b",
+      "bytes": 1041,
+      "kind": "unchanged_copy",
+      "source": "gecko/metadata.json",
+      "source_sha256": "5640535574aa223d56f9041a33323aed6e5525b90a6b486d5cc2034734e9610b"
+    },
+    {
+      "path": "gecko/morphology_snapshots.png",
+      "sha256": "88e751b4127b588204be2373661cdc89412d210f4830c30e6d50604a28396581",
+      "bytes": 419359,
+      "kind": "unchanged_copy",
+      "source": "gecko/analysis/morphology_snapshots.png",
+      "source_sha256": "88e751b4127b588204be2373661cdc89412d210f4830c30e6d50604a28396581"
+    },
+    {
+      "path": "gecko/n_valid_changes.csv",
+      "sha256": "91b6159425ee46b4487872a6957c1b8bdcf886c3464f9392ccc6682b5bcf4474",
+      "bytes": 1914,
+      "kind": "piecewise_constant_valid_counts",
+      "source": "gecko/analysis/core_morphology_metrics_n_valid.csv",
+      "source_sha256": "205cf4a7cf0f073d3ff9add9a070f8a0547d8bdcd7b0aed1a03804819edc225f",
+      "source_rows": 80008,
+      "exported_rows": 55
+    },
+    {
+      "path": "gecko/per_run_summary.csv",
+      "sha256": "31ab42cc8742746040f14ede25e4835786b5587836d300df43bbb80461635970",
+      "bytes": 69270,
+      "kind": "unchanged_copy",
+      "source": "gecko/per_run_summary.csv",
+      "source_sha256": "31ab42cc8742746040f14ede25e4835786b5587836d300df43bbb80461635970"
+    },
+    {
+      "path": "gecko/representative_selection.csv",
+      "sha256": "5184321ecf31cadf0d50f8404205e7a830c391e6f675aa81177a6ee50a4005dd",
+      "bytes": 901,
+      "kind": "unchanged_copy",
+      "source": "gecko/analysis/representative_selection.csv",
+      "source_sha256": "5184321ecf31cadf0d50f8404205e7a830c391e6f675aa81177a6ee50a4005dd"
+    },
+    {
+      "path": "gecko/resolved_config.json",
+      "sha256": "54fab9b5e2964d42e6454c04a32645f860de6dfc1885cfca9cd50246eefbbe18",
+      "bytes": 1315,
+      "kind": "unchanged_copy",
+      "source": "gecko/resolved_config.json",
+      "source_sha256": "54fab9b5e2964d42e6454c04a32645f860de6dfc1885cfca9cd50246eefbbe18"
+    },
+    {
+      "path": "gecko/target_regime.json",
+      "sha256": "3e15a1f4656fb63aedd0e864db5661f53bcb87ef58e8152b7f0472fd6a0de962",
+      "bytes": 196,
+      "kind": "unchanged_copy",
+      "source": "gecko/target_regime.json",
+      "source_sha256": "3e15a1f4656fb63aedd0e864db5661f53bcb87ef58e8152b7f0472fd6a0de962"
+    },
+    {
+      "path": "gecko/visible_channel_dynamics.png",
+      "sha256": "5feaf7d4c72acc4c378b31b3ab9e4af81142f2f52096f8a81ac1a4fc56e08096",
+      "bytes": 334295,
+      "kind": "unchanged_copy",
+      "source": "gecko/analysis/visible_channel_dynamics.png",
+      "source_sha256": "5feaf7d4c72acc4c378b31b3ab9e4af81142f2f52096f8a81ac1a4fc56e08096"
+    },
+    {
+      "path": "planaria/conditions.csv",
+      "sha256": "1eb8e01481ea1ae9a4c5fb638ea13275c8efea5002264f55dbcf7ef7003e99de",
+      "bytes": 763,
+      "kind": "unchanged_copy",
+      "source": "planaria/conditions.csv",
+      "source_sha256": "1eb8e01481ea1ae9a4c5fb638ea13275c8efea5002264f55dbcf7ef7003e99de"
+    },
+    {
+      "path": "planaria/core_morphology_metrics.png",
+      "sha256": "9060a51d53a63f98be9ffc3a64c19465a9b07f5734cd502a6c05bd19e2ebb1cf",
+      "bytes": 417417,
+      "kind": "unchanged_copy",
+      "source": "planaria/analysis/core_morphology_metrics.png",
+      "source_sha256": "9060a51d53a63f98be9ffc3a64c19465a9b07f5734cd502a6c05bd19e2ebb1cf"
+    },
+    {
+      "path": "planaria/development_to_target.png",
+      "sha256": "e38d8931da522dd8b9150cadba99bbf16af71124ac172ccd102028b229ea0821",
+      "bytes": 20881,
+      "kind": "unchanged_copy",
+      "source": "planaria/analysis/development_to_target.png",
+      "source_sha256": "e38d8931da522dd8b9150cadba99bbf16af71124ac172ccd102028b229ea0821"
+    },
+    {
+      "path": "planaria/excluded_replicates.json",
+      "sha256": "37807601b95d3c70976235c19ea21418ed56b06d38f927b8c1503d75b3f4ad7d",
+      "bytes": 21,
+      "kind": "unchanged_copy",
+      "source": "planaria/excluded_replicates.json",
+      "source_sha256": "37807601b95d3c70976235c19ea21418ed56b06d38f927b8c1503d75b3f4ad7d"
+    },
+    {
+      "path": "planaria/final_t10000__baseline.png",
+      "sha256": "c921c2898299c18ab4ef797cef6ab5306d3053fa4cc82347e249e87bd29c8408",
+      "bytes": 748544,
+      "kind": "unchanged_copy",
+      "source": "planaria/analysis/final_t10000__baseline.png",
+      "source_sha256": "c921c2898299c18ab4ef797cef6ab5306d3053fa4cc82347e249e87bd29c8408"
+    },
+    {
+      "path": "planaria/final_t10000__hidden_freeze.png",
+      "sha256": "249dc351d1fd329f801f09cc29a446a40a67e108ca3bf85355bcf4c05d4970a1",
+      "bytes": 378118,
+      "kind": "unchanged_copy",
+      "source": "planaria/analysis/final_t10000__hidden_freeze.png",
+      "source_sha256": "249dc351d1fd329f801f09cc29a446a40a67e108ca3bf85355bcf4c05d4970a1"
+    },
+    {
+      "path": "planaria/final_t10000__hidden_freeze_first_6.png",
+      "sha256": "adcb0d7cd80188731e791d0cdbb612b2f9c11b9b641b116291ac59e67431e75c",
+      "bytes": 746558,
+      "kind": "unchanged_copy",
+      "source": "planaria/analysis/final_t10000__hidden_freeze_first_6.png",
+      "source_sha256": "adcb0d7cd80188731e791d0cdbb612b2f9c11b9b641b116291ac59e67431e75c"
+    },
+    {
+      "path": "planaria/final_t10000__hidden_freeze_morphology.png",
+      "sha256": "cf7836f125fbd34d83b86774f2900307b6db396cfd12a914f764db35ac2b208f",
+      "bytes": 487510,
+      "kind": "unchanged_copy",
+      "source": "planaria/analysis/final_t10000__hidden_freeze_morphology.png",
+      "source_sha256": "cf7836f125fbd34d83b86774f2900307b6db396cfd12a914f764db35ac2b208f"
+    },
+    {
+      "path": "planaria/final_t10000__periodic_reset_150.png",
+      "sha256": "e2ec2214036c512dfc2db464bce0b533defe87e174248c6247f15aca22414499",
+      "bytes": 752699,
+      "kind": "unchanged_copy",
+      "source": "planaria/analysis/final_t10000__periodic_reset_150.png",
+      "source_sha256": "e2ec2214036c512dfc2db464bce0b533defe87e174248c6247f15aca22414499"
+    },
+    {
+      "path": "planaria/final_t10000__restore_beta_0p1.png",
+      "sha256": "59f5878e4745c737ef7caf61e7d73cd6e529f0cd922d88ddfdc25259d0e8d022",
+      "bytes": 300995,
+      "kind": "unchanged_copy",
+      "source": "planaria/analysis/final_t10000__restore_beta_0p1.png",
+      "source_sha256": "59f5878e4745c737ef7caf61e7d73cd6e529f0cd922d88ddfdc25259d0e8d022"
+    },
+    {
+      "path": "planaria/final_t10000__restore_development_step_16_beta_0p1.png",
+      "sha256": "56c81a9838c21adfe0689805603b010afa64f7b169231c1d982e25bbcfe11359",
+      "bytes": 570534,
+      "kind": "unchanged_copy",
+      "source": "planaria/analysis/final_t10000__restore_development_step_16_beta_0p1.png",
+      "source_sha256": "56c81a9838c21adfe0689805603b010afa64f7b169231c1d982e25bbcfe11359"
+    },
+    {
+      "path": "planaria/final_t10000__restore_development_step_16_period_150.png",
+      "sha256": "15e5ee93b9e8787f4576d03f30ca084bea9376a4f94acc8301f3c746586775f1",
+      "bytes": 752298,
+      "kind": "unchanged_copy",
+      "source": "planaria/analysis/final_t10000__restore_development_step_16_period_150.png",
+      "source_sha256": "15e5ee93b9e8787f4576d03f30ca084bea9376a4f94acc8301f3c746586775f1"
+    },
+    {
+      "path": "planaria/hidden_channel_dynamics.png",
+      "sha256": "8906dcc33ee08dee677f5ac85280dd861bcce85898c4e519c9480f8aad5ea32c",
+      "bytes": 435259,
+      "kind": "unchanged_copy",
+      "source": "planaria/analysis/hidden_channel_dynamics.png",
+      "source_sha256": "8906dcc33ee08dee677f5ac85280dd861bcce85898c4e519c9480f8aad5ea32c"
+    },
+    {
+      "path": "planaria/metadata.json",
+      "sha256": "99b87b9faf7e4756065f3d1f6ea493dd098ad917dc2623e19ad75922b35c1bdb",
+      "bytes": 1047,
+      "kind": "unchanged_copy",
+      "source": "planaria/metadata.json",
+      "source_sha256": "99b87b9faf7e4756065f3d1f6ea493dd098ad917dc2623e19ad75922b35c1bdb"
+    },
+    {
+      "path": "planaria/morphology_snapshots.png",
+      "sha256": "d43a9fea49afc4fe25dc5624814b02b6c98018bdd707ea2cf10c0b5365d04cae",
+      "bytes": 715633,
+      "kind": "unchanged_copy",
+      "source": "planaria/analysis/morphology_snapshots.png",
+      "source_sha256": "d43a9fea49afc4fe25dc5624814b02b6c98018bdd707ea2cf10c0b5365d04cae"
+    },
+    {
+      "path": "planaria/n_valid_changes.csv",
+      "sha256": "a2489bf6838718a6e8f2e478f5e6e41c5d171eac553a20bdf991c3e0173ca538",
+      "bytes": 572,
+      "kind": "piecewise_constant_valid_counts",
+      "source": "planaria/analysis/core_morphology_metrics_n_valid.csv",
+      "source_sha256": "29107a283647ff14771648e0e6532dff91bb9e1312628b8bce8a3818a58a955d",
+      "source_rows": 80008,
+      "exported_rows": 16
+    },
+    {
+      "path": "planaria/per_run_summary.csv",
+      "sha256": "4b6b8b107e4decd2aa968fc4faa2294d0722e3f9da619edf82486aa217285924",
+      "bytes": 71456,
+      "kind": "unchanged_copy",
+      "source": "planaria/per_run_summary.csv",
+      "source_sha256": "4b6b8b107e4decd2aa968fc4faa2294d0722e3f9da619edf82486aa217285924"
+    },
+    {
+      "path": "planaria/representative_selection.csv",
+      "sha256": "1f6180c00e4c05e6806e94ad1e55647e0bfe6ee98d791076d63c602c336b792d",
+      "bytes": 914,
+      "kind": "unchanged_copy",
+      "source": "planaria/analysis/representative_selection.csv",
+      "source_sha256": "1f6180c00e4c05e6806e94ad1e55647e0bfe6ee98d791076d63c602c336b792d"
+    },
+    {
+      "path": "planaria/resolved_config.json",
+      "sha256": "c7167fb316be5660b564607bd4339bdd9dc9472d7fc9c7f3c5a1f00361c0080b",
+      "bytes": 1324,
+      "kind": "unchanged_copy",
+      "source": "planaria/resolved_config.json",
+      "source_sha256": "c7167fb316be5660b564607bd4339bdd9dc9472d7fc9c7f3c5a1f00361c0080b"
+    },
+    {
+      "path": "planaria/target_regime.json",
+      "sha256": "82b1036608e03f03015078bced50cdba0dee9e724b1391e094fbdd94eb8535a2",
+      "bytes": 196,
+      "kind": "unchanged_copy",
+      "source": "planaria/target_regime.json",
+      "source_sha256": "82b1036608e03f03015078bced50cdba0dee9e724b1391e094fbdd94eb8535a2"
+    },
+    {
+      "path": "planaria/visible_channel_dynamics.png",
+      "sha256": "b8255daa2f1000dec7e23bbbd7150a4c95453ab541d04f36348010d7ab7acee2",
+      "bytes": 325355,
+      "kind": "unchanged_copy",
+      "source": "planaria/analysis/visible_channel_dynamics.png",
+      "source_sha256": "b8255daa2f1000dec7e23bbbd7150a4c95453ab541d04f36348010d7ab7acee2"
+    },
+    {
+      "path": "spider/conditions.csv",
+      "sha256": "1eb8e01481ea1ae9a4c5fb638ea13275c8efea5002264f55dbcf7ef7003e99de",
+      "bytes": 763,
+      "kind": "unchanged_copy",
+      "source": "spider/conditions.csv",
+      "source_sha256": "1eb8e01481ea1ae9a4c5fb638ea13275c8efea5002264f55dbcf7ef7003e99de"
+    },
+    {
+      "path": "spider/core_morphology_metrics.png",
+      "sha256": "baa5c8a6cee7b14bf6ab5c20dc3a1a2ad183f56f7877c7fd11e933c322c5e889",
+      "bytes": 543948,
+      "kind": "unchanged_copy",
+      "source": "spider/analysis/core_morphology_metrics.png",
+      "source_sha256": "baa5c8a6cee7b14bf6ab5c20dc3a1a2ad183f56f7877c7fd11e933c322c5e889"
+    },
+    {
+      "path": "spider/development_to_target.png",
+      "sha256": "227550a59c44f57d5cd64691448f35005eeb6ea7d5b8e91a24d02eeaec8265f4",
+      "bytes": 31117,
+      "kind": "unchanged_copy",
+      "source": "spider/analysis/development_to_target.png",
+      "source_sha256": "227550a59c44f57d5cd64691448f35005eeb6ea7d5b8e91a24d02eeaec8265f4"
+    },
+    {
+      "path": "spider/excluded_replicates.json",
+      "sha256": "37807601b95d3c70976235c19ea21418ed56b06d38f927b8c1503d75b3f4ad7d",
+      "bytes": 21,
+      "kind": "unchanged_copy",
+      "source": "spider/excluded_replicates.json",
+      "source_sha256": "37807601b95d3c70976235c19ea21418ed56b06d38f927b8c1503d75b3f4ad7d"
+    },
+    {
+      "path": "spider/final_t10000__baseline.png",
+      "sha256": "a182bd816b33afafe3bf9b0d65c653d2f8b9657b919542aac5ee8a063ce0dccc",
+      "bytes": 225895,
+      "kind": "unchanged_copy",
+      "source": "spider/analysis/final_t10000__baseline.png",
+      "source_sha256": "a182bd816b33afafe3bf9b0d65c653d2f8b9657b919542aac5ee8a063ce0dccc"
+    },
+    {
+      "path": "spider/final_t10000__hidden_freeze.png",
+      "sha256": "2fab1e36c064220f591078bb3c6d37180f2477bc6c2c1ceb26bcbb8d78a8c8dc",
+      "bytes": 411646,
+      "kind": "unchanged_copy",
+      "source": "spider/analysis/final_t10000__hidden_freeze.png",
+      "source_sha256": "2fab1e36c064220f591078bb3c6d37180f2477bc6c2c1ceb26bcbb8d78a8c8dc"
+    },
+    {
+      "path": "spider/final_t10000__hidden_freeze_first_6.png",
+      "sha256": "b9b58ef658c44c81cd54d8eadfd3093820b45ce60534ae284386758db2a6a99b",
+      "bytes": 278293,
+      "kind": "unchanged_copy",
+      "source": "spider/analysis/final_t10000__hidden_freeze_first_6.png",
+      "source_sha256": "b9b58ef658c44c81cd54d8eadfd3093820b45ce60534ae284386758db2a6a99b"
+    },
+    {
+      "path": "spider/final_t10000__hidden_freeze_morphology.png",
+      "sha256": "b9d25309a87f0d551e260143146046d86c73a3fc9c610c8d6055aecca5eff13c",
+      "bytes": 84011,
+      "kind": "unchanged_copy",
+      "source": "spider/analysis/final_t10000__hidden_freeze_morphology.png",
+      "source_sha256": "b9d25309a87f0d551e260143146046d86c73a3fc9c610c8d6055aecca5eff13c"
+    },
+    {
+      "path": "spider/final_t10000__periodic_reset_150.png",
+      "sha256": "09f88d706a07ac651c84d448aa9e95c572ebf1a266c65f1b01fdbc4f749ab08a",
+      "bytes": 681280,
+      "kind": "unchanged_copy",
+      "source": "spider/analysis/final_t10000__periodic_reset_150.png",
+      "source_sha256": "09f88d706a07ac651c84d448aa9e95c572ebf1a266c65f1b01fdbc4f749ab08a"
+    },
+    {
+      "path": "spider/final_t10000__restore_beta_0p1.png",
+      "sha256": "9d755bbcbc014a43d1bc7f305ed306c145391a21ded928746010249508859f38",
+      "bytes": 369916,
+      "kind": "unchanged_copy",
+      "source": "spider/analysis/final_t10000__restore_beta_0p1.png",
+      "source_sha256": "9d755bbcbc014a43d1bc7f305ed306c145391a21ded928746010249508859f38"
+    },
+    {
+      "path": "spider/final_t10000__restore_development_step_16_beta_0p1.png",
+      "sha256": "d0b75edeeb4cf4ded51f3b4bbe2e37c7e144ea6cb86e60fc3bc431b857693e69",
+      "bytes": 366858,
+      "kind": "unchanged_copy",
+      "source": "spider/analysis/final_t10000__restore_development_step_16_beta_0p1.png",
+      "source_sha256": "d0b75edeeb4cf4ded51f3b4bbe2e37c7e144ea6cb86e60fc3bc431b857693e69"
+    },
+    {
+      "path": "spider/final_t10000__restore_development_step_16_period_150.png",
+      "sha256": "ffa529e997f95f8547831836dfeeb1f1bad7e74c4123895fab593a4d6c9c828d",
+      "bytes": 678999,
+      "kind": "unchanged_copy",
+      "source": "spider/analysis/final_t10000__restore_development_step_16_period_150.png",
+      "source_sha256": "ffa529e997f95f8547831836dfeeb1f1bad7e74c4123895fab593a4d6c9c828d"
+    },
+    {
+      "path": "spider/hidden_channel_dynamics.png",
+      "sha256": "2ddd991c7f9fcb024266603135df04aa216b50b926dbdc93ad156de0e43ef76b",
+      "bytes": 419502,
+      "kind": "unchanged_copy",
+      "source": "spider/analysis/hidden_channel_dynamics.png",
+      "source_sha256": "2ddd991c7f9fcb024266603135df04aa216b50b926dbdc93ad156de0e43ef76b"
+    },
+    {
+      "path": "spider/metadata.json",
+      "sha256": "53bb6694ccb09a7cfc8b9df49dbadd869d51e274ef5ebb2d1cd5e4f8e797fe1c",
+      "bytes": 1043,
+      "kind": "unchanged_copy",
+      "source": "spider/metadata.json",
+      "source_sha256": "53bb6694ccb09a7cfc8b9df49dbadd869d51e274ef5ebb2d1cd5e4f8e797fe1c"
+    },
+    {
+      "path": "spider/morphology_snapshots.png",
+      "sha256": "b6109f7756af084f8c02b7030e7587c838ad5d115592fcafc8e687717f40a09a",
+      "bytes": 717007,
+      "kind": "unchanged_copy",
+      "source": "spider/analysis/morphology_snapshots.png",
+      "source_sha256": "b6109f7756af084f8c02b7030e7587c838ad5d115592fcafc8e687717f40a09a"
+    },
+    {
+      "path": "spider/n_valid_changes.csv",
+      "sha256": "16d23b3ec66178ecfb3c2427bb495412a73ab54b26329b92e008401b3954385d",
+      "bytes": 1563,
+      "kind": "piecewise_constant_valid_counts",
+      "source": "spider/analysis/core_morphology_metrics_n_valid.csv",
+      "source_sha256": "a23c5194da35f2f0e57eea85d5fd4dfab6370168506ed078e24a1f5d04fbffad",
+      "source_rows": 80008,
+      "exported_rows": 43
+    },
+    {
+      "path": "spider/per_run_summary.csv",
+      "sha256": "c1f03a6251c5215c37dc4e6d003ca22359a92d3c64fb752e8892e6e2bf48c973",
+      "bytes": 69736,
+      "kind": "unchanged_copy",
+      "source": "spider/per_run_summary.csv",
+      "source_sha256": "c1f03a6251c5215c37dc4e6d003ca22359a92d3c64fb752e8892e6e2bf48c973"
+    },
+    {
+      "path": "spider/representative_selection.csv",
+      "sha256": "265ad0d37d41a8fc46c410220b2b8aee35bf8a3a7655c86f8adc61f37a94e48c",
+      "bytes": 891,
+      "kind": "unchanged_copy",
+      "source": "spider/analysis/representative_selection.csv",
+      "source_sha256": "265ad0d37d41a8fc46c410220b2b8aee35bf8a3a7655c86f8adc61f37a94e48c"
+    },
+    {
+      "path": "spider/resolved_config.json",
+      "sha256": "33de183a213e562adccd7c9b48b0a269130d5cf89c6b97cf08672638f3fee491",
+      "bytes": 1318,
+      "kind": "unchanged_copy",
+      "source": "spider/resolved_config.json",
+      "source_sha256": "33de183a213e562adccd7c9b48b0a269130d5cf89c6b97cf08672638f3fee491"
+    },
+    {
+      "path": "spider/target_regime.json",
+      "sha256": "3f23d187fda6a7c73643832b4e68a82f794d5e2f4295906c92fda4e4c9c1eafb",
+      "bytes": 195,
+      "kind": "unchanged_copy",
+      "source": "spider/target_regime.json",
+      "source_sha256": "3f23d187fda6a7c73643832b4e68a82f794d5e2f4295906c92fda4e4c9c1eafb"
+    },
+    {
+      "path": "spider/visible_channel_dynamics.png",
+      "sha256": "62d580e62dfc2b31622ea960fbcd1edde14aa42de9109b1fb988a59310dd9b09",
+      "bytes": 316173,
+      "kind": "unchanged_copy",
+      "source": "spider/analysis/visible_channel_dynamics.png",
+      "source_sha256": "62d580e62dfc2b31622ea960fbcd1edde14aa42de9109b1fb988a59310dd9b09"
+    }
+  ]
+}

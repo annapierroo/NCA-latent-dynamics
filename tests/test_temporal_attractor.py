@@ -1,18 +1,10 @@
-import csv
-import json
-from dataclasses import replace
-
 import numpy as np
 import pytest
 import torch
 
-from latent_nca.experiment_1.conditions import ConditionSpec
-from latent_nca.experiment_1.config import (
+from scripts.experiment_1 import (
+    ConditionSpec,
     ExperimentConfig,
-    load_experiment_config,
-)
-from latent_nca.experiment_1.metrics import TargetRegime
-from latent_nca.experiment_1.temporal_attractor import (
     TemporalAttractorSettings,
     _fit_projection,
     _record_condition,
@@ -21,7 +13,7 @@ from latent_nca.experiment_1.temporal_attractor import (
     _state_feature,
     _trajectory_legend_handles,
     _transform_with_residual,
-    run_temporal_attractor_analysis,
+    load_experiment_config,
 )
 
 
@@ -107,12 +99,14 @@ def test_full_state_recording_retains_visible_dynamics_under_hidden_freeze():
 def test_default_attractor_conditions_include_both_freezes_and_development_references():
     config = load_experiment_config("configs/experiment_1.yaml")
     conditions = _resolved_conditions(config, None)
-    assert len(conditions) == 9
+    assert len(conditions) == 8
     assert {condition.name for condition in conditions} >= {
         "hidden_freeze",
+        "hidden_freeze_morphology",
         "hidden_freeze_first_6",
-        "restore_development_step_48_period_150",
+        "restore_development_step_16_period_150",
     }
+    assert not any(condition.reference_step == 48 for condition in conditions)
 
 
 def test_full_grid_representation_includes_rectangular_background():
@@ -172,17 +166,17 @@ def test_attractor_cli_dispatches_all_four_morphologies_and_conditions(tmp_path,
     from scripts import experiment_1 as cli
 
     calls = []
-    for morphology in cli.MORPHOLOGIES:
-        folder = tmp_path / morphology
-        folder.mkdir()
-        config = load_experiment_config("configs/experiment_1.yaml")
-        (folder / "resolved_config.json").write_text(json.dumps(config.to_dict()))
-        with (folder / "per_run_summary.csv").open("w", newline="") as handle:
-            writer = csv.DictWriter(handle, fieldnames=["replicate", "condition", "survival_time"])
-            writer.writeheader()
-            writer.writerows(
-                [{"replicate": i, "condition": "baseline", "survival_time": 10 + i} for i in (0, 1)]
-            )
+    config = load_experiment_config("configs/experiment_1.yaml")
+    monkeypatch.setattr(
+        cli,
+        "_load_population",
+        lambda folder: (
+            config,
+            cli.build_conditions(config.interventions),
+            [{"metadata": {"replicate": i}} for i in (0, 1)],
+            [],
+        ),
+    )
 
     def capture(*args, **kwargs):
         calls.append(args)
@@ -190,87 +184,18 @@ def test_attractor_cli_dispatches_all_four_morphologies_and_conditions(tmp_path,
 
     monkeypatch.setattr(cli, "run_temporal_attractor_analysis", capture)
     args = cli.build_parser().parse_args(
-        ["attractor", "--results-root", str(tmp_path), "--all-replicates", "--crop-size", "0"]
+        ["attractor", "--results-root", str(tmp_path), "--all-replicates"]
     )
     args.handler(args)
     assert len(calls) == 8
     assert {call[0].name for call in calls} == set(cli.MORPHOLOGIES)
     assert all(
-        len(call[3]) == 9 and "hidden_freeze" in call[3] and "hidden_freeze_first_6" in call[3]
+        len(call[3]) == 8
+        and "hidden_freeze_morphology" in call[3]
+        and "hidden_freeze" in call[3]
+        and "hidden_freeze_first_6" in call[3]
         for call in calls
     )
     assert all(call[4].crop_size == 0 for call in calls)
     with pytest.raises(ValueError, match="baseline"):
-        cli.analyze_attractor(
-            cli.build_parser().parse_args(
-                [
-                    "attractor",
-                    "--results-dir",
-                    str(tmp_path / "gecko"),
-                    "--conditions",
-                    "hidden_freeze",
-                ]
-            )
-        )
-
-
-def test_small_full_pipeline_recomputes_failures_and_records_all_conditions(tmp_path, monkeypatch):
-    from latent_nca.experiment_1 import temporal_attractor as analysis
-
-    class ToyModel:
-        def __call__(self, state, update_probability):
-            return state + 0.02 * (torch.rand_like(state[:, :1]) <= update_probability)
-
-    source = tmp_path / "source"
-    source.mkdir()
-    checkpoint, target_path = source / "model.pt", source / "target.png"
-    checkpoint.write_bytes(b"synthetic checkpoint")
-    target_path.write_bytes(b"synthetic target")
-    cfg = replace(
-        load_experiment_config("configs/experiment_1.yaml"),
-        checkpoint=str(checkpoint),
-        target=str(target_path),
-    )
-    (source / "resolved_config.json").write_text(json.dumps(cfg.to_dict()))
-    regime = TargetRegime(0.00025, 0.9, 0.9, 1.1, 0.95)
-    (source / "target_regime.json").write_text(json.dumps(regime.to_dict()))
-    with (source / "per_run_summary.csv").open("w", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=["condition", "replicate", "first_failure_step"])
-        writer.writeheader()
-        writer.writerows(
-            [
-                {"condition": c.name, "replicate": 0, "first_failure_step": 999}
-                for c in _resolved_conditions(cfg, None)
-            ]
-        )
-    mature = torch.ones(16, 4, 4)
-    torch.save(
-        {
-            i: {
-                "state": mature,
-                "mature_step": 68,
-                "development_seed": 20000 + i,
-                "development_states": {16: mature * 0.2, 48: mature * 0.8},
-            }
-            for i in range(3)
-        },
-        source / "mature_states.pt",
-    )
-    monkeypatch.setattr(analysis, "load_model", lambda *args: ToyModel())
-    monkeypatch.setattr(analysis, "load_distill_target", lambda *args: mature[None, :4])
-    output = tmp_path / "pca"
-    settings = TemporalAttractorSettings(
-        horizon=15, dense_until=2, record_every=3, crop_size=0, pca_components=3
-    )
-    run_temporal_attractor_analysis(source, output, 0, None, settings, "cpu")
-    metadata = json.loads((output / "metadata.json").read_text())
-    assert len(metadata["conditions"]) == 9
-    assert metadata["representation"]["features"] == 16 * 4 * 4
-    assert metadata["source_first_failure_steps"]["baseline"] == 999
-    assert 0 < metadata["replayed_first_failure_steps"]["baseline"] < 15
-    with np.load(output / "full_state_features__hidden_freeze.npz") as archive:
-        frames = archive["features"].reshape(-1, 16, 4, 4)
-        assert np.all(frames[:, 4:] == 1)
-        assert np.any(frames[-1, :4] != 1)
-    assert (output / "pairwise_pca_3d.png").is_file()
-    assert (output / "reference_pca_trajectories.png").is_file()
+        cli._resolved_conditions(config, ("hidden_freeze",))

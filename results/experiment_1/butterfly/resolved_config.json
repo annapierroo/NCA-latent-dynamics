@@ -2,8 +2,8 @@
   "name": "experiment_1",
   "checkpoint": "checkpoints/growing/butterfly/model.pt",
   "target": "data/butterfly.png",
-  "output_dir": "reports/experiment_1/butterfly",
-  "device": "auto",
+  "output_dir": "reports/experiment_1_corrected/butterfly",
+  "device": "mps",
   "model": {
     "channels": 16,
     "hidden_size": 128,
@@ -29,6 +29,7 @@
   },
   "interventions": {
     "include_standard_conditions": true,
+    "include_morphology_freeze": true,
     "partial_freeze_counts": [
       6
     ],
@@ -39,8 +40,7 @@
       150
     ],
     "development_reference_steps": [
-      16,
-      48
+      16
     ],
     "development_restore_strengths": [
       0.1
@@ -60,7 +60,6 @@
       2000,
       5000,
       10000
-    ],
-    "snapshot_all_conditions": true
+    ]
   }
 }

@@ -6,6 +6,8 @@ from dataclasses import asdict, dataclass
 import numpy as np
 import torch
 
+MEASUREMENT_REVISION = "cpu-float64-after-transfer-v1"
+
 MORPHOLOGY_METRIC_NAMES = (
     "target_mse",
     "alpha_iou",
@@ -40,7 +42,8 @@ def _needs_float64_reductions(*tensors: torch.Tensor | None) -> bool:
 
 
 def _cpu_double(tensor: torch.Tensor | None) -> torch.Tensor | None:
-    return None if tensor is None else tensor.detach().to(device="cpu", dtype=torch.float64)
+    # MPS must transfer in its native dtype before converting on the CPU.
+    return None if tensor is None else tensor.detach().cpu().double()
 
 
 @dataclass(frozen=True)
@@ -122,6 +125,8 @@ class MorphologyEvaluator:
         state: torch.Tensor,
         previous_state: torch.Tensor | None = None,
     ) -> dict[str, float]:
+        if not bool(torch.isfinite(state).all()):
+            return dict.fromkeys(METRIC_NAMES, float("nan"))
         if self._large_reference or _needs_float64_reductions(state, previous_state):
             if self._double_evaluator is None:
                 self._double_evaluator = MorphologyEvaluator(

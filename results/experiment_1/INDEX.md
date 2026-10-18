@@ -1,72 +1,99 @@
 # Experiment 1 Results
 
-Research question: can manipulating hidden states delay or prevent the long-term degeneration of a Growing NCA after it reaches the target morphology?
+Can hidden-state interventions preserve a mature Growing NCA morphology over
+10,000 further stochastic updates?
 
-This folder publishes existing figures and lightweight supporting data for gecko, butterfly, spider, and planaria. No simulations were rerun for this export. Files copied from `reports/experiment_1` are unchanged; the original reports and raw archives remain local.
+This bundle replaces the previous nine-condition results with the corrected
+**eight-condition experiment**, including morphology-only hidden freezing and
+development-step-16 restoration. Development-step-48 figures and old PCA results
+are no longer part of this publication. No simulations were rerun for this export.
 
-## Introduction
+## Figures
 
-Each morphology has 30 paired stochastic evaluation rollouts for each of nine conditions. All conditions within a replicate start from the same mature state and use the same continuation seed. The four morphologies are not pooled as independent replicates. These are rollout replicates, not 30 independently trained models.
+Each morphology has 30 paired stochastic rollout replicas. A replica uses the
+same mature initial state and continuation seed for all eight conditions. These
+are not independently trained models; the four morphologies are not pooled.
 
-| Morphology | Population morphology metrics | Hidden / visible dynamics | Representative snapshots | Full-state PCA |
+| Morphology | Population Metrics | Channel Dynamics | Representative Snapshots | Final Population |
 | --- | --- | --- | --- | --- |
-| Gecko | [Metrics](gecko/core_morphology_metrics.png) | [Hidden](gecko/hidden_channel_dynamics.png) / [RGBA](gecko/visible_channel_dynamics.png) | [Replica 021](gecko/representative_replica_021.png) | [Replica 005](gecko/attractor_analysis/replicate_005/) |
-| Butterfly | [Metrics](butterfly/core_morphology_metrics.png) | [Hidden](butterfly/hidden_channel_dynamics.png) / [RGBA](butterfly/visible_channel_dynamics.png) | [Replica 028](butterfly/representative_replica_028.png) | [Replica 012](butterfly/attractor_analysis/replicate_012/) |
-| Spider | [Metrics](spider/core_morphology_metrics.png) | [Hidden](spider/hidden_channel_dynamics.png) / [RGBA](spider/visible_channel_dynamics.png) | [Replica 025](spider/representative_replica_025.png) | [Replica 004](spider/attractor_analysis/replicate_004/) |
-| Planaria | [Metrics](planaria/core_morphology_metrics.png) | [Hidden](planaria/hidden_channel_dynamics.png) / [RGBA](planaria/visible_channel_dynamics.png) | [Replica 025](planaria/representative_replica_025.png) | [Replica 002](planaria/attractor_analysis/replicate_002/) |
+| Gecko | [MSE, IoU, area](gecko/core_morphology_metrics.png) | [Hidden](gecko/hidden_channel_dynamics.png) / [RGBA](gecko/visible_channel_dynamics.png) | [Replica 014](gecko/morphology_snapshots.png) | [Target-only freeze](gecko/final_t10000__hidden_freeze_morphology.png) |
+| Butterfly | [MSE, IoU, area](butterfly/core_morphology_metrics.png) | [Hidden](butterfly/hidden_channel_dynamics.png) / [RGBA](butterfly/visible_channel_dynamics.png) | [Replica 028](butterfly/morphology_snapshots.png) | [Target-only freeze](butterfly/final_t10000__hidden_freeze_morphology.png) |
+| Planaria | [MSE, IoU, area](planaria/core_morphology_metrics.png) | [Hidden](planaria/hidden_channel_dynamics.png) / [RGBA](planaria/visible_channel_dynamics.png) | [Replica 025](planaria/morphology_snapshots.png) | [Target-only freeze](planaria/final_t10000__hidden_freeze_morphology.png) |
+| Spider | [MSE, IoU, area](spider/core_morphology_metrics.png) | [Hidden](spider/hidden_channel_dynamics.png) / [RGBA](spider/visible_channel_dynamics.png) | [Replica 007](spider/morphology_snapshots.png) | [Target-only freeze](spider/final_t10000__hidden_freeze_morphology.png) |
+
+Each morphology folder also contains `development_to_target.png` and a
+`final_t10000__<condition>.png` gallery for every condition, showing all 30 replicas.
 
 ## Conditions
 
-All interventions act only on hidden channels 4-15 over the entire substrate, including the background. Visible RGBA channels 0-3 always follow the learned NCA rule.
+Visible RGBA channels always follow the learned NCA rule. Interventions affect
+hidden channels only, after each natural update. Except for target-only freezing,
+they operate on the complete substrate, including background.
 
-| File identifier | Intervention after target attainment |
+| Identifier | Intervention |
 | --- | --- |
 | `baseline` | Unconstrained control. |
-| `hidden_freeze` | Replace all 12 hidden channels with their mature values after every update. |
-| `hidden_freeze_first_6` | Replace the first six hidden channels with their mature values after every update. |
-| `restore_beta_0p1` | After every update, move hidden values 10% toward their mature reference. |
-| `periodic_reset_150` | Reset hidden values to the mature reference every 150 steps; otherwise allow free evolution. |
-| `restore_development_step_16_beta_0p1` | Continuous 10% restoration toward the same rollout's development-step-16 reference. |
-| `restore_development_step_48_beta_0p1` | Continuous 10% restoration toward the same rollout's development-step-48 reference. |
-| `restore_development_step_16_period_150` | Reset hidden values to the development-step-16 reference every 150 steps. |
-| `restore_development_step_48_period_150` | Reset hidden values to the development-step-48 reference every 150 steps. |
+| `hidden_freeze` | Reset all hidden channels to their mature values after every update. |
+| `hidden_freeze_morphology` | Reset all hidden channels only inside the fixed target-alpha mask. Background hidden channels remain free. |
+| `hidden_freeze_first_6` | Reset the first six of the twelve hidden channels to their mature values. |
+| `restore_beta_0p1` | Move hidden values 10% toward the fixed mature reference after every update. |
+| `periodic_reset_150` | Hard reset to the mature hidden reference every 150 updates. |
+| `restore_development_step_16_beta_0p1` | Continuous 10% restoration toward this replica's development-step-16 hidden state. |
+| `restore_development_step_16_period_150` | Hard reset to the development-step-16 hidden state every 150 updates. |
 
-## Protocol
+## Protocol and Interpretation
 
-- One single-target Growing NCA checkpoint per morphology, with four RGBA and 12 hidden channels.
-- Calibration: 32 unperturbed post-training development rollouts, sampled at steps 64-96, using acceptance quantile 0.95 and alpha threshold 0.1. These are not training batches.
-- Maturity: five consecutive states inside the calibrated MSE, IoU, and area-ratio bounds. Time zero in the plots is target attainment.
-- Evaluation: 10,000 steps after attainment, with stochastic cell-update probability 0.5.
-- Sustained morphology failure: the first of ten consecutive states outside the calibrated bounds.
-- Hidden and visible channel measurements are sampled every ten steps.
-- Substrate: 72 x 72 for gecko, butterfly, and planaria; 72 x 67 for the aspect-preserving spider target.
+- One pretrained Growing NCA checkpoint per morphology: four RGBA and twelve hidden channels.
+- Target-regime calibration: 32 independent post-training developments, sampled at steps 64-96; acceptance quantile 0.95 and alpha threshold 0.1.
+- Maturity: five consecutive states inside the calibrated MSE, IoU and area-ratio bounds. Plot time zero is target attainment.
+- Evaluation: 10,000 further updates, cell-update probability 0.5. Sustained failure starts at the first of ten consecutive out-of-regime states.
+- Complete NCA states and measurements are checked for numerical validity. After NaN/Inf, the corresponding branch ends permanently; unavailable values are not replaced with zeros.
+- Core curves: finite-only median, dark 25th-75th percentile band and light 5th-95th percentile band. These describe rollout variability, not confidence intervals. A curve ends when no valid replicas remain.
+- Dashed MSE/IoU lines and the area-ratio band show calibrated target-regime bounds. Target-region MSE has no separately calibrated threshold.
+- Channel heatmaps: per-channel median relative-L2 deviation from the mature state and consecutive-step RMS activity, over the whole grid. Color limits are logarithmic and clipped; gray indicates missing data, not inactivity.
+- Snapshots: saved frames from one actual paired replica nearest the joint median trajectories, not averaged images and not a new simulation replay. Each row uses the same replica. Snapshot colors are display-clipped; quantitative MSE uses raw RGBA.
+- Final galleries: saved states at step 10,000; `Numerically diverged` means that branch no longer has a finite valid state.
 
-Exact configuration, thresholds, seeds, input hashes, exclusions, and original runtime versions are retained in each morphology's CSV/JSON files. Local absolute paths in metadata describe the original run machine; checkpoint and target paths in `resolved_config.json` are relative to the repository.
+Numerically large MPS states use CPU float64 reductions only after a native-dtype
+CPU transfer. This preserves the corrected measurement procedure without changing
+the learned NCA update rule, intervention strengths or seeds.
 
-## Reading the Figures
+## Supporting Data
 
-**Core morphology metrics.** Solid lines are medians of finite measurements across the paired replicates. Dark bands show the 25th-75th percentiles (IQR); light bands show the 5th-95th percentiles. These bands describe spread, not confidence intervals. Legend counts show finite values at the first and final steps. Divergent trajectories do not contribute after measurements become non-finite. Gray dashed lines mark calibrated global MSE and IoU bounds, not the target image's own error. Target-region MSE measures errors only where the target alpha mask is present; it has no separate calibrated bound.
+Each morphology contains:
 
-**Hidden and visible dynamics.** Heatmaps show per-channel median deviation from the mature reference (relative L2) and median consecutive-step activity (RMS). They include the complete substrate, including background. Color scales are logarithmic and clipped at the displayed limits; saturation does not mean equal values. Gray cells indicate unavailable finite measurements, not zero activity.
+- `conditions.csv` and `per_run_summary.csv`: eight conditions and 240 condition-by-replica summaries, including seeds, failures and final metrics.
+- `resolved_config.json`, `target_regime.json`, `metadata.json` and `excluded_replicates.json`: original configuration, calibrated thresholds and provenance. Absolute paths describe the original run location and are preserved unchanged.
+- `representative_selection.csv`: selection scores for all 30 replicas.
+- `n_valid_changes.csv`: valid-replica counts at step zero, every count change and the final step. Counts are piecewise constant; forward-fill between these rows to reconstruct the full count series without uploading 80,008 repetitive rows per morphology.
 
-**Representative snapshots.** Each image shows one actual paired rollout across all conditions, not a pixelwise average or median image. Selection minimizes an IQR-scaled distance to population metric medians across conditions and time, using target-region MSE, IoU, and area ratio; missing measurements are penalized. Scores and selected ID are in `representative_selection.csv`. The PCA diagnostic replica is selected separately and is not necessarily this snapshot replica.
+[export_manifest.json](export_manifest.json) lists the source run signatures,
+SHA-256 hashes and file sizes for this bundle. PNG files and original CSV/JSON
+supporting files are byte-for-byte copies; only `n_valid_changes.csv` is a compact,
+lossless representation of the full validity-count CSV.
 
-**Final population galleries.** Each `final_t10000__<condition>.png` shows all 30 rollout IDs for that condition at step 10,000. `Numerically diverged` means no valid saved metric state at that time.
-**Development and original snapshots.** `development_to_target.png` shows a single saved development trajectory. Butterfly additionally retains `morphology_snapshots.png`, the original single-rollout montage; it is not the median-selected montage.
+Raw `.npz`/`.pt` trajectories and intermediate caches remain local. This is a
+viewing and interpretation bundle, not a complete raw-data deposit. No Experiment
+2, beta-restoration or MPC results are included.
 
-**Full-state temporal PCA.** Each PCA folder contains reference-space and pairwise 2D trajectories, pairwise 3D trajectories, coordinates, and metadata for one diagnostic rollout. All nine conditions are included. Representation uses all 16 channels over the full substrate, without spatial pooling. Sampling is every step through 250 and every ten steps afterwards, including the final step when numerically available. Numerical divergence can truncate a trajectory before 10,000.
+## Updated PCA
 
-The shared reference PCA is fitted on the mature-state ensemble and the selected control's states inside the target regime. Each pairwise PCA is fitted on the control and one condition; its axes are not directly comparable with those in other panels. Unequal temporal sampling also affects the fit. A compact trajectory or apparent loop does not prove a mathematical attractor. These single-rollout projections are exploratory diagnostics, not population-level tests.
+The previous PCA figures used a different condition set and are intentionally
+removed rather than mixed with these results. PCA remains available in the code.
+To generate updated full-state PCA for every current condition, on the local
+corrected archives:
 
-## Supporting Files
+```bash
+PYTHONPATH=src .venv/bin/python scripts/experiment_1.py attractor \
+  --results-root "$HOME/Downloads/NCA_recovery/experiment_1_corrected_2026-10-17" \
+  --morphologies gecko butterfly planaria spider \
+  --crop-size 0 \
+  --record-every 10 \
+  --analysis-name temporal_full_state
+```
 
-Within each morphology:
-
-- `conditions.csv`: condition labels, intervention parameters, and reference definitions.
-- `per_run_summary.csv`: 270 original condition-by-rollout records, including final metrics, sustained-failure information, numerical divergence, development steps, and seeds. Final values may be non-finite after divergence.
-- `representative_selection.csv`: scores for all 30 snapshot candidates and selected ID.
-- `resolved_config.json`, `target_regime.json`, `metadata.json`, and `excluded_replicates.json`: configuration and provenance.
-- `attractor_analysis/replicate_NNN/`: three PCA figures, reference and pairwise coordinate CSVs, and analysis metadata. Pairwise coordinates from different conditions use different bases.
-- `*.replay_mismatches.csv`, when present: unresolved snapshot replay discrepancies.
-
-Raw per-step population metrics, channel arrays, saved states, full-state PCA features, and fitted PCA model arrays (`.npz`/`.pt`) are intentionally not uploaded. This is a viewing and interpretation bundle, not a complete raw-data deposit: the population plots and PCA fits cannot be regenerated from this folder alone. No Experiment 2 outputs are included.
+The default analyzes one representative replica per morphology, using all sixteen
+state channels and the original device/environment. Outputs are written under
+`<morphology>/analysis/attractor/temporal_full_state/replicate_NNN/`. These new PCA
+results are not included in the present bundle. PCA geometry alone is not proof
+of a mathematical attractor.
