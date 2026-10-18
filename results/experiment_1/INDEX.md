@@ -6,7 +6,8 @@ Can hidden-state interventions preserve a mature Growing NCA morphology over
 This bundle replaces the previous nine-condition results with the corrected
 **eight-condition experiment**, including morphology-only hidden freezing and
 development-step-16 restoration. Development-step-48 figures and old PCA results
-are no longer part of this publication. No simulations were rerun for this export.
+are no longer part of this publication. The population figures were copied without
+rerunning their simulations; the updated PCA uses a separate paired replay.
 
 ## Figures
 
@@ -78,10 +79,33 @@ viewing and interpretation bundle, not a complete raw-data deposit. No Experimen
 
 ## Updated PCA
 
-The previous PCA figures used a different condition set and are intentionally
-removed rather than mixed with these results. PCA remains available in the code.
-To generate updated full-state PCA for every current condition, on the local
-corrected archives:
+All three PCA figures include the eight current conditions and use the same
+representative replica selected for each morphology's snapshots.
+
+| Morphology | Replica | Target-Regime Reference PCA | Pairwise PCA (2D) | Pairwise PCA (3D) |
+| --- | --- | --- | --- | --- |
+| Gecko | 014 | [Reference](gecko/attractor_analysis/replicate_014/reference_pca_trajectories.png) | [2D](gecko/attractor_analysis/replicate_014/pairwise_pca_trajectories.png) | [3D](gecko/attractor_analysis/replicate_014/pairwise_pca_3d.png) |
+| Butterfly | 028 | [Reference](butterfly/attractor_analysis/replicate_028/reference_pca_trajectories.png) | [2D](butterfly/attractor_analysis/replicate_028/pairwise_pca_trajectories.png) | [3D](butterfly/attractor_analysis/replicate_028/pairwise_pca_3d.png) |
+| Planaria | 025 | [Reference](planaria/attractor_analysis/replicate_025/reference_pca_trajectories.png) | [2D](planaria/attractor_analysis/replicate_025/pairwise_pca_trajectories.png) | [3D](planaria/attractor_analysis/replicate_025/pairwise_pca_3d.png) |
+| Spider | 007 | [Reference](spider/attractor_analysis/replicate_007/reference_pca_trajectories.png) | [2D](spider/attractor_analysis/replicate_007/pairwise_pca_trajectories.png) | [3D](spider/attractor_analysis/replicate_007/pairwise_pca_3d.png) |
+
+- These are full-state PCA projections: all sixteen NCA channels, including RGBA,
+  over the complete grid and background. They are not hidden-only PCA.
+- Reference PCA uses the 30 mature states plus the selected control trajectory
+  while it remains inside the target regime. All conditions share this basis.
+- Pairwise PCA is fitted separately for each condition and its paired control.
+  Its axes and explained-variance percentages are not directly comparable between
+  conditions or morphologies. Percentages are shown on the plot axes.
+- Each figure represents one paired rollout, not an aggregate over 30 replicas.
+  PCA trajectories were replayed from the saved mature states using the original
+  device, environment and seeds. All replayed first sustained morphology-failure
+  steps match their source-run markers.
+- Each PCA folder includes the original `metadata.json`, recording the run
+  signature, checkpoint/target hashes, seeds, reference fit and sampling settings.
+  Fitted PCA models and coordinate archives remain local; only PNGs and metadata
+  are included here. PCA geometry alone does not prove a mathematical attractor.
+
+Command used to generate these full-state PCA results from the corrected archives:
 
 ```bash
 PYTHONPATH=src .venv/bin/python scripts/experiment_1.py attractor \
@@ -92,8 +116,6 @@ PYTHONPATH=src .venv/bin/python scripts/experiment_1.py attractor \
   --analysis-name temporal_full_state
 ```
 
-The default analyzes one representative replica per morphology, using all sixteen
-state channels and the original device/environment. Outputs are written under
-`<morphology>/analysis/attractor/temporal_full_state/replicate_NNN/`. These new PCA
-results are not included in the present bundle. PCA geometry alone is not proof
-of a mathematical attractor.
+Original outputs are written under
+`<morphology>/analysis/attractor/temporal_full_state/replicate_NNN/`; the publication
+copies are linked above under `attractor_analysis/replicate_NNN/`.

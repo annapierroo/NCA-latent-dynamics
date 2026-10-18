@@ -5,7 +5,7 @@
   "source_root": "/Users/anna/Downloads/NCA_recovery/experiment_1_corrected_2026-10-17",
   "simulation_rerun": false,
   "raw_archives_included": false,
-  "pca_included": false,
+  "pca_included": true,
   "runtime_module_sha256": "f9390f8bcdad3d6b401f0e052226b5e7dc9f5585bae75d7c017c6893e7b24721",
   "conditions": [
     "baseline",
@@ -25,8 +25,32 @@
       "summary_rows": 240,
       "excluded": 0,
       "representative_replica": 14,
-      "png_files": 13,
-      "horizon": 10000
+      "png_files": 16,
+      "horizon": 10000,
+      "pca": {
+        "replicate": 14,
+        "directory": "gecko/attractor_analysis/replicate_014",
+        "source_directory": "gecko/analysis/attractor/temporal_full_state/replicate_014",
+        "conditions": 8,
+        "settings": {
+          "horizon": 10000,
+          "dense_until": 250,
+          "record_every": 10,
+          "crop_size": 0,
+          "pca_components": 12,
+          "pca_seed": 40000
+        },
+        "representation": {
+          "channels": "all 16 NCA channels",
+          "spatial_region": "full 72x72 substrate, including background",
+          "features": 82944,
+          "pooling": false
+        },
+        "replay_failure_markers_match": true,
+        "png_files": 3,
+        "coordinate_archives_included": false,
+        "fitted_models_included": false
+      }
     },
     "butterfly": {
       "run_signature": "265e1086159696b1b9100176dfd2527895a110d23dbe0150270019a3fb4fa641",
@@ -35,8 +59,32 @@
       "summary_rows": 240,
       "excluded": 0,
       "representative_replica": 28,
-      "png_files": 13,
-      "horizon": 10000
+      "png_files": 16,
+      "horizon": 10000,
+      "pca": {
+        "replicate": 28,
+        "directory": "butterfly/attractor_analysis/replicate_028",
+        "source_directory": "butterfly/analysis/attractor/temporal_full_state/replicate_028",
+        "conditions": 8,
+        "settings": {
+          "horizon": 10000,
+          "dense_until": 250,
+          "record_every": 10,
+          "crop_size": 0,
+          "pca_components": 12,
+          "pca_seed": 40000
+        },
+        "representation": {
+          "channels": "all 16 NCA channels",
+          "spatial_region": "full 72x72 substrate, including background",
+          "features": 82944,
+          "pooling": false
+        },
+        "replay_failure_markers_match": true,
+        "png_files": 3,
+        "coordinate_archives_included": false,
+        "fitted_models_included": false
+      }
     },
     "planaria": {
       "run_signature": "0ece96cb1015bbf657176288410e065f15ebc3cc5a4148d5966dac65b9a5d4e2",
@@ -45,8 +93,32 @@
       "summary_rows": 240,
       "excluded": 0,
       "representative_replica": 25,
-      "png_files": 13,
-      "horizon": 10000
+      "png_files": 16,
+      "horizon": 10000,
+      "pca": {
+        "replicate": 25,
+        "directory": "planaria/attractor_analysis/replicate_025",
+        "source_directory": "planaria/analysis/attractor/temporal_full_state/replicate_025",
+        "conditions": 8,
+        "settings": {
+          "horizon": 10000,
+          "dense_until": 250,
+          "record_every": 10,
+          "crop_size": 0,
+          "pca_components": 12,
+          "pca_seed": 40000
+        },
+        "representation": {
+          "channels": "all 16 NCA channels",
+          "spatial_region": "full 72x72 substrate, including background",
+          "features": 82944,
+          "pooling": false
+        },
+        "replay_failure_markers_match": true,
+        "png_files": 3,
+        "coordinate_archives_included": false,
+        "fitted_models_included": false
+      }
     },
     "spider": {
       "run_signature": "cfe7fef5608075a0c7d6dda9c49210302bf8e1437fe2e9b722387aeab71be188",
@@ -55,16 +127,72 @@
       "summary_rows": 240,
       "excluded": 0,
       "representative_replica": 7,
-      "png_files": 13,
-      "horizon": 10000
+      "png_files": 16,
+      "horizon": 10000,
+      "pca": {
+        "replicate": 7,
+        "directory": "spider/attractor_analysis/replicate_007",
+        "source_directory": "spider/analysis/attractor/temporal_full_state/replicate_007",
+        "conditions": 8,
+        "settings": {
+          "horizon": 10000,
+          "dense_until": 250,
+          "record_every": 10,
+          "crop_size": 0,
+          "pca_components": 12,
+          "pca_seed": 40000
+        },
+        "representation": {
+          "channels": "all 16 NCA channels",
+          "spatial_region": "full 72x67 substrate, including background",
+          "features": 77184,
+          "pooling": false
+        },
+        "replay_failure_markers_match": true,
+        "png_files": 3,
+        "coordinate_archives_included": false,
+        "fitted_models_included": false
+      }
     }
   },
   "files": [
     {
       "path": "INDEX.md",
-      "sha256": "951909d5d65c00ef842ec12289c29e58112c04a99fbde2cd122e3de00e38a9e5",
-      "bytes": 7336,
+      "sha256": "8b6322e359bec1355987fe476fb30fb13f3092805a8c6560b3eb4493d1a63058",
+      "bytes": 9500,
       "kind": "publication_index"
+    },
+    {
+      "path": "butterfly/attractor_analysis/replicate_028/metadata.json",
+      "sha256": "0d1268a1ff529a36ad5fa0d25acb94ee757a43b7e20eff5c274b79805ad10b01",
+      "bytes": 2578,
+      "kind": "unchanged_copy",
+      "source": "butterfly/analysis/attractor/temporal_full_state/replicate_028/metadata.json",
+      "source_sha256": "0d1268a1ff529a36ad5fa0d25acb94ee757a43b7e20eff5c274b79805ad10b01"
+    },
+    {
+      "path": "butterfly/attractor_analysis/replicate_028/pairwise_pca_3d.png",
+      "sha256": "7c872fd86c6c826b3a562cb62d8c8ba7f026790af5a70f4612d9d6e7c194aeb8",
+      "bytes": 1393874,
+      "kind": "unchanged_copy",
+      "source": "butterfly/analysis/attractor/temporal_full_state/replicate_028/pairwise_pca_3d.png",
+      "source_sha256": "7c872fd86c6c826b3a562cb62d8c8ba7f026790af5a70f4612d9d6e7c194aeb8"
+    },
+    {
+      "path": "butterfly/attractor_analysis/replicate_028/pairwise_pca_trajectories.png",
+      "sha256": "5c6241308a84ed4f44f0fdf4883e47d3f3a4ab842d540b0bcc1bd6602cfe5859",
+      "bytes": 1019148,
+      "kind": "unchanged_copy",
+      "source": "butterfly/analysis/attractor/temporal_full_state/replicate_028/pairwise_pca_trajectories.png",
+      "source_sha256": "5c6241308a84ed4f44f0fdf4883e47d3f3a4ab842d540b0bcc1bd6602cfe5859"
+    },
+    {
+      "path": "butterfly/attractor_analysis/replicate_028/reference_pca_trajectories.png",
+      "sha256": "3f1789427fb7ade7db35860051cfbed235a67091be6255ad9649d1cfc65fcb8b",
+      "bytes": 1859551,
+      "kind": "unchanged_copy",
+      "source": "butterfly/analysis/attractor/temporal_full_state/replicate_028/reference_pca_trajectories.png",
+      "source_sha256": "3f1789427fb7ade7db35860051cfbed235a67091be6255ad9649d1cfc65fcb8b"
     },
     {
       "path": "butterfly/conditions.csv",
@@ -237,6 +365,38 @@
       "source_sha256": "21e9155acbfcfb026bb49f33499702b67868624a46820f95206b095e5f9407e2"
     },
     {
+      "path": "gecko/attractor_analysis/replicate_014/metadata.json",
+      "sha256": "908c202d9a4d3f7f735780719e6f19447120bb5bf86eb9b711aef2d74e64aced",
+      "bytes": 2580,
+      "kind": "unchanged_copy",
+      "source": "gecko/analysis/attractor/temporal_full_state/replicate_014/metadata.json",
+      "source_sha256": "908c202d9a4d3f7f735780719e6f19447120bb5bf86eb9b711aef2d74e64aced"
+    },
+    {
+      "path": "gecko/attractor_analysis/replicate_014/pairwise_pca_3d.png",
+      "sha256": "cbf6f17c7d25d6b2f8b2a84cbf5045e72440b584604a5d4a6840e5d5a1dde656",
+      "bytes": 1216774,
+      "kind": "unchanged_copy",
+      "source": "gecko/analysis/attractor/temporal_full_state/replicate_014/pairwise_pca_3d.png",
+      "source_sha256": "cbf6f17c7d25d6b2f8b2a84cbf5045e72440b584604a5d4a6840e5d5a1dde656"
+    },
+    {
+      "path": "gecko/attractor_analysis/replicate_014/pairwise_pca_trajectories.png",
+      "sha256": "a6dd102afbd4a705d323c37452450330261cd0d0f61286da0b0d097e4fd1852c",
+      "bytes": 667481,
+      "kind": "unchanged_copy",
+      "source": "gecko/analysis/attractor/temporal_full_state/replicate_014/pairwise_pca_trajectories.png",
+      "source_sha256": "a6dd102afbd4a705d323c37452450330261cd0d0f61286da0b0d097e4fd1852c"
+    },
+    {
+      "path": "gecko/attractor_analysis/replicate_014/reference_pca_trajectories.png",
+      "sha256": "ee14a61d33bff774024c6d577e2415c2af32a74d3fb59df17fcfb3c5c735349f",
+      "bytes": 1207799,
+      "kind": "unchanged_copy",
+      "source": "gecko/analysis/attractor/temporal_full_state/replicate_014/reference_pca_trajectories.png",
+      "source_sha256": "ee14a61d33bff774024c6d577e2415c2af32a74d3fb59df17fcfb3c5c735349f"
+    },
+    {
       "path": "gecko/conditions.csv",
       "sha256": "1eb8e01481ea1ae9a4c5fb638ea13275c8efea5002264f55dbcf7ef7003e99de",
       "bytes": 763,
@@ -405,6 +565,38 @@
       "kind": "unchanged_copy",
       "source": "gecko/analysis/visible_channel_dynamics.png",
       "source_sha256": "5feaf7d4c72acc4c378b31b3ab9e4af81142f2f52096f8a81ac1a4fc56e08096"
+    },
+    {
+      "path": "planaria/attractor_analysis/replicate_025/metadata.json",
+      "sha256": "2325a3ef085089b655ae1123ebdf6bf53e002b1e343ee56f77935732e65ac164",
+      "bytes": 2581,
+      "kind": "unchanged_copy",
+      "source": "planaria/analysis/attractor/temporal_full_state/replicate_025/metadata.json",
+      "source_sha256": "2325a3ef085089b655ae1123ebdf6bf53e002b1e343ee56f77935732e65ac164"
+    },
+    {
+      "path": "planaria/attractor_analysis/replicate_025/pairwise_pca_3d.png",
+      "sha256": "ef2c298810dac1a398f87ae92464bbc6f77014e61ce8e974129c99c2dc288f48",
+      "bytes": 1493581,
+      "kind": "unchanged_copy",
+      "source": "planaria/analysis/attractor/temporal_full_state/replicate_025/pairwise_pca_3d.png",
+      "source_sha256": "ef2c298810dac1a398f87ae92464bbc6f77014e61ce8e974129c99c2dc288f48"
+    },
+    {
+      "path": "planaria/attractor_analysis/replicate_025/pairwise_pca_trajectories.png",
+      "sha256": "d8be6268d4614c404246577decd8a867c98ebd04f4156dac69e1b750d6d588b0",
+      "bytes": 1187400,
+      "kind": "unchanged_copy",
+      "source": "planaria/analysis/attractor/temporal_full_state/replicate_025/pairwise_pca_trajectories.png",
+      "source_sha256": "d8be6268d4614c404246577decd8a867c98ebd04f4156dac69e1b750d6d588b0"
+    },
+    {
+      "path": "planaria/attractor_analysis/replicate_025/reference_pca_trajectories.png",
+      "sha256": "592306e2a12269257f4ddab72a003c642587447514cc3287ac0b144278be74f6",
+      "bytes": 1565930,
+      "kind": "unchanged_copy",
+      "source": "planaria/analysis/attractor/temporal_full_state/replicate_025/reference_pca_trajectories.png",
+      "source_sha256": "592306e2a12269257f4ddab72a003c642587447514cc3287ac0b144278be74f6"
     },
     {
       "path": "planaria/conditions.csv",
@@ -577,6 +769,38 @@
       "source_sha256": "b8255daa2f1000dec7e23bbbd7150a4c95453ab541d04f36348010d7ab7acee2"
     },
     {
+      "path": "spider/attractor_analysis/replicate_007/metadata.json",
+      "sha256": "3c81f40d945bb4d3a0dafa4f243fba5f29f1a421d9aa8723c9790f175cb411cc",
+      "bytes": 2576,
+      "kind": "unchanged_copy",
+      "source": "spider/analysis/attractor/temporal_full_state/replicate_007/metadata.json",
+      "source_sha256": "3c81f40d945bb4d3a0dafa4f243fba5f29f1a421d9aa8723c9790f175cb411cc"
+    },
+    {
+      "path": "spider/attractor_analysis/replicate_007/pairwise_pca_3d.png",
+      "sha256": "d678122054af41b007da4aeb2424e4127a1b066cf309619c0d68fd497ef578ca",
+      "bytes": 1215691,
+      "kind": "unchanged_copy",
+      "source": "spider/analysis/attractor/temporal_full_state/replicate_007/pairwise_pca_3d.png",
+      "source_sha256": "d678122054af41b007da4aeb2424e4127a1b066cf309619c0d68fd497ef578ca"
+    },
+    {
+      "path": "spider/attractor_analysis/replicate_007/pairwise_pca_trajectories.png",
+      "sha256": "196571d54df3f040971da630dd06f8575d75df24f644bea52da327cc4aa9142f",
+      "bytes": 612963,
+      "kind": "unchanged_copy",
+      "source": "spider/analysis/attractor/temporal_full_state/replicate_007/pairwise_pca_trajectories.png",
+      "source_sha256": "196571d54df3f040971da630dd06f8575d75df24f644bea52da327cc4aa9142f"
+    },
+    {
+      "path": "spider/attractor_analysis/replicate_007/reference_pca_trajectories.png",
+      "sha256": "51342aa361d6ba8dccd1618a1ced42090a5e4775feb5e7512ac7015d0068da31",
+      "bytes": 1506125,
+      "kind": "unchanged_copy",
+      "source": "spider/analysis/attractor/temporal_full_state/replicate_007/reference_pca_trajectories.png",
+      "source_sha256": "51342aa361d6ba8dccd1618a1ced42090a5e4775feb5e7512ac7015d0068da31"
+    },
+    {
       "path": "spider/conditions.csv",
       "sha256": "1eb8e01481ea1ae9a4c5fb638ea13275c8efea5002264f55dbcf7ef7003e99de",
       "bytes": 763,
@@ -746,5 +970,7 @@
       "source": "spider/analysis/visible_channel_dynamics.png",
       "source_sha256": "62d580e62dfc2b31622ea960fbcd1edde14aa42de9109b1fb988a59310dd9b09"
     }
-  ]
+  ],
+  "pca_exported_utc": "2026-10-18T10:20:04.450993+00:00",
+  "simulation_rerun_scope": "Population simulations were not rerun for export. PCA trajectories use an independent paired replay recorded in each PCA metadata.json."
 }
