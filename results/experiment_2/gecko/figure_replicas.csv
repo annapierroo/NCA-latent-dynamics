@@ -1,0 +1,7 @@
+system,selection_rank,replicate,selection_method
+persistent,1,3,"Three finite control trajectories closest to median log1p MSE and mean IoU, IQR-scaled; the same replica is used for all its perturbations. Selection is illustrative, not inference."
+persistent,2,25,"Three finite control trajectories closest to median log1p MSE and mean IoU, IQR-scaled; the same replica is used for all its perturbations. Selection is illustrative, not inference."
+persistent,3,29,"Three finite control trajectories closest to median log1p MSE and mean IoU, IQR-scaled; the same replica is used for all its perturbations. Selection is illustrative, not inference."
+growing_restore,1,17,"Three finite control trajectories closest to median log1p MSE and mean IoU, IQR-scaled; the same replica is used for all its perturbations. Selection is illustrative, not inference."
+growing_restore,2,13,"Three finite control trajectories closest to median log1p MSE and mean IoU, IQR-scaled; the same replica is used for all its perturbations. Selection is illustrative, not inference."
+growing_restore,3,1,"Three finite control trajectories closest to median log1p MSE and mean IoU, IQR-scaled; the same replica is used for all its perturbations. Selection is illustrative, not inference."
