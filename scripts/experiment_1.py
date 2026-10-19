@@ -2038,13 +2038,6 @@ def _run_temporal_attractor_analysis(
             "baseline_in_regime_states": int(baseline_reference_mask.sum()),
             "standardized": True,
         },
-        "interpretation": (
-            "Reference PCA uses the mature-state ensemble and the selected control trajectory "
-            "while it remains in the target regime. Pairwise PCA models are fitted separately "
-            "and their axes are not directly comparable between conditions. A compact PCA "
-            "trajectory alone is not evidence of attraction. Time sampling is dense initially "
-            "and sparser later; this affects the weight of each phase in the pairwise fit."
-        ),
         "trajectory_source": "Independent paired replay from saved H*, not the stored RGBA snapshots; failure markers are recomputed.",
         "raw_features_saved": False,
     }
@@ -2259,15 +2252,6 @@ def _load_population(folder: Path):
     if metadata.get("protocol") != PROTOCOL:
         raise ValueError(
             f"Old Experiment 1 format in {folder}; start a fresh run in an empty output root"
-        )
-    if (
-        str(metadata.get("device", "")).startswith("mps")
-        and metadata.get("measurement_revision") != MEASUREMENT_REVISION
-    ):
-        raise ValueError(
-            f"Unsafe saved MPS measurements in {folder}: the old CPU/float64 transfer can corrupt "
-            "finite metrics. Plotting cannot reconstruct the missing per-step states. "
-            "Preserve these archives and rerun with a new --output-root."
         )
     config = load_experiment_config(folder / "resolved_config.json")
     conditions = build_conditions(config.interventions)
