@@ -9,8 +9,8 @@ Each morphology has 30 paired stochastic rollout replicas. A replica uses the
 same mature initial state and continuation seed for all eight conditions. These
 are not independently trained models; the four morphologies are not pooled.
 
-| Morphology | Population Metrics | Channel Dynamics | Representative Snapshots | Final Population |
-| --- | --- | --- | --- | --- |
+| Morphology | Population Metrics | Channel Dynamics | Representative Snapshots | 
+| --- | --- | --- | --- |
 | Gecko | [MSE, IoU, area](gecko/core_morphology_metrics.png) | [Hidden](gecko/hidden_channel_dynamics.png) / [RGBA](gecko/visible_channel_dynamics.png) | [Replica 014](gecko/morphology_snapshots.png) 
 | Butterfly | [MSE, IoU, area](butterfly/core_morphology_metrics.png) | [Hidden](butterfly/hidden_channel_dynamics.png) / [RGBA](butterfly/visible_channel_dynamics.png) | [Replica 028](butterfly/morphology_snapshots.png) 
 | Planaria | [MSE, IoU, area](planaria/core_morphology_metrics.png) | [Hidden](planaria/hidden_channel_dynamics.png) / [RGBA](planaria/visible_channel_dynamics.png) | [Replica 025](planaria/morphology_snapshots.png) 
