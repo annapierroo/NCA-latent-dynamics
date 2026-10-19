@@ -11,11 +11,10 @@ are not independently trained models; the four morphologies are not pooled.
 
 | Morphology | Population Metrics | Channel Dynamics | Representative Snapshots | Final Population |
 | --- | --- | --- | --- | --- |
-| Gecko | [MSE, IoU, area](gecko/core_morphology_metrics.png) | [Hidden](gecko/hidden_channel_dynamics.png) / [RGBA](gecko/visible_channel_dynamics.png) | [Replica 014](gecko/morphology_snapshots.png) | [Target-only freeze](gecko/final_t10000__hidden_freeze_morphology.png) |
-| Butterfly | [MSE, IoU, area](butterfly/core_morphology_metrics.png) | [Hidden](butterfly/hidden_channel_dynamics.png) / [RGBA](butterfly/visible_channel_dynamics.png) | [Replica 028](butterfly/morphology_snapshots.png) | [Target-only freeze](butterfly/final_t10000__hidden_freeze_morphology.png) |
-| Planaria | [MSE, IoU, area](planaria/core_morphology_metrics.png) | [Hidden](planaria/hidden_channel_dynamics.png) / [RGBA](planaria/visible_channel_dynamics.png) | [Replica 025](planaria/morphology_snapshots.png) | [Target-only freeze](planaria/final_t10000__hidden_freeze_morphology.png) |
-| Spider | [MSE, IoU, area](spider/core_morphology_metrics.png) | [Hidden](spider/hidden_channel_dynamics.png) / [RGBA](spider/visible_channel_dynamics.png) | [Replica 007](spider/morphology_snapshots.png) | [Target-only freeze](spider/final_t10000__hidden_freeze_morphology.png) |
-
+| Gecko | [MSE, IoU, area](gecko/core_morphology_metrics.png) | [Hidden](gecko/hidden_channel_dynamics.png) / [RGBA](gecko/visible_channel_dynamics.png) | [Replica 014](gecko/morphology_snapshots.png) 
+| Butterfly | [MSE, IoU, area](butterfly/core_morphology_metrics.png) | [Hidden](butterfly/hidden_channel_dynamics.png) / [RGBA](butterfly/visible_channel_dynamics.png) | [Replica 028](butterfly/morphology_snapshots.png) 
+| Planaria | [MSE, IoU, area](planaria/core_morphology_metrics.png) | [Hidden](planaria/hidden_channel_dynamics.png) / [RGBA](planaria/visible_channel_dynamics.png) | [Replica 025](planaria/morphology_snapshots.png) 
+| Spider | [MSE, IoU, area](spider/core_morphology_metrics.png) | [Hidden](spider/hidden_channel_dynamics.png) / [RGBA](spider/visible_channel_dynamics.png) | [Replica 007](spider/morphology_snapshots.png) 
 Each morphology folder also contains `development_to_target.png` and a
 `final_t10000__<condition>.png` gallery for every condition, showing all 30 replicas.
 
