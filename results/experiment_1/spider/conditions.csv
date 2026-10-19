@@ -1,0 +1,9 @@
+name,label,family,parameter_name,parameter,hidden_indices,reference_step,spatial_scope
+baseline,Control,baseline,,,,,full_grid
+hidden_freeze,Freeze hidden (full grid),freeze,beta,1.0,,,full_grid
+hidden_freeze_morphology,Freeze hidden (target only),morphology_freeze,,,,,target_mask
+hidden_freeze_first_6,Freeze first 6 hidden,partial_freeze,frozen_channels,6,"(0, 1, 2, 3, 4, 5)",,full_grid
+restore_beta_0p1,Restore beta=0.1,restore,beta,0.1,,,full_grid
+periodic_reset_150,Periodic reset P=150,periodic_reset,interval,150,,,full_grid
+restore_development_step_16_beta_0p1,Restore dev t=16 beta=0.1,development_restore,beta,0.1,,16,full_grid
+restore_development_step_16_period_150,Dev reset t=16 P=150,development_periodic_reset,interval,150,,16,full_grid
