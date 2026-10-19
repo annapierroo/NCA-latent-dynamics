@@ -3,11 +3,6 @@
 Can hidden-state interventions preserve a mature Growing NCA morphology over
 10,000 further stochastic updates?
 
-This bundle replaces the previous nine-condition results with the corrected
-**eight-condition experiment**, including morphology-only hidden freezing and
-development-step-16 restoration. Development-step-48 figures and old PCA results
-are no longer part of this publication. No simulations were rerun for this export.
-
 ## Figures
 
 Each morphology has 30 paired stochastic rollout replicas. A replica uses the
@@ -54,9 +49,6 @@ they operate on the complete substrate, including background.
 - Snapshots: saved frames from one actual paired replica nearest the joint median trajectories, not averaged images and not a new simulation replay. Each row uses the same replica. Snapshot colors are display-clipped; quantitative MSE uses raw RGBA.
 - Final galleries: saved states at step 10,000; `Numerically diverged` means that branch no longer has a finite valid state.
 
-Numerically large MPS states use CPU float64 reductions only after a native-dtype
-CPU transfer. This preserves the corrected measurement procedure without changing
-the learned NCA update rule, intervention strengths or seeds.
 
 ## Supporting Data
 
@@ -65,35 +57,5 @@ Each morphology contains:
 - `conditions.csv` and `per_run_summary.csv`: eight conditions and 240 condition-by-replica summaries, including seeds, failures and final metrics.
 - `resolved_config.json`, `target_regime.json`, `metadata.json` and `excluded_replicates.json`: original configuration, calibrated thresholds and provenance. Absolute paths describe the original run location and are preserved unchanged.
 - `representative_selection.csv`: selection scores for all 30 replicas.
-- `n_valid_changes.csv`: valid-replica counts at step zero, every count change and the final step. Counts are piecewise constant; forward-fill between these rows to reconstruct the full count series without uploading 80,008 repetitive rows per morphology.
 
-[export_manifest.json](export_manifest.json) lists the source run signatures,
-SHA-256 hashes and file sizes for this bundle. PNG files and original CSV/JSON
-supporting files are byte-for-byte copies; only `n_valid_changes.csv` is a compact,
-lossless representation of the full validity-count CSV.
 
-Raw `.npz`/`.pt` trajectories and intermediate caches remain local. This is a
-viewing and interpretation bundle, not a complete raw-data deposit. No Experiment
-2, beta-restoration or MPC results are included.
-
-## Updated PCA
-
-The previous PCA figures used a different condition set and are intentionally
-removed rather than mixed with these results. PCA remains available in the code.
-To generate updated full-state PCA for every current condition, on the local
-corrected archives:
-
-```bash
-PYTHONPATH=src .venv/bin/python scripts/experiment_1.py attractor \
-  --results-root "$HOME/Downloads/NCA_recovery/experiment_1_corrected_2026-10-17" \
-  --morphologies gecko butterfly planaria spider \
-  --crop-size 0 \
-  --record-every 10 \
-  --analysis-name temporal_full_state
-```
-
-The default analyzes one representative replica per morphology, using all sixteen
-state channels and the original device/environment. Outputs are written under
-`<morphology>/analysis/attractor/temporal_full_state/replicate_NNN/`. These new PCA
-results are not included in the present bundle. PCA geometry alone is not proof
-of a mathematical attractor.
