@@ -1,0 +1,110 @@
+{
+  "protocol": "experiment_3_hidden_insertion_v4",
+  "manipulation": "insertion",
+  "model": {
+    "channels": 16,
+    "hidden_size": 128,
+    "target_size": 40,
+    "padding": 16,
+    "fire_rate": 0.5,
+    "beta": 0.1,
+    "alpha_threshold": 0.1,
+    "mature_start": 64,
+    "mature_stop": 96,
+    "development_limit": 256,
+    "attainment_patience": 5,
+    "recovery_patience": 20,
+    "calibration_replicates": 32,
+    "acceptance_quantile": 0.95,
+    "seed": 50000
+  },
+  "freeze_steps": 300,
+  "horizon": 6000,
+  "systems": [
+    "growing_restore"
+  ],
+  "conditions": {
+    "growing_restore": [
+      {
+        "name": "control",
+        "label": "Control",
+        "wound": null,
+        "donor": null,
+        "reference": "original"
+      },
+      {
+        "name": "insert_head",
+        "label": "Insert second head",
+        "wound": "insertion_head",
+        "donor": "head",
+        "reference": "donor"
+      }
+    ]
+  },
+  "geometry_sha256": "a5a90f65fd950b1ff0a1017f4f39033acbd28c7d0198c7993d3b425f2deac0f4",
+  "target_sha256": "31c86c4bf1ba8b88c1921d9a64082512078ab7f948d51b6438ec396540bf1638",
+  "checkpoints": {
+    "persistent": "d9cd4d1d4276f1dfe0da681bc6dd8b5d1880b97a41a16fa22f6d7b86a65d68ea",
+    "growing_restore": "95f16e6a89149b6ad5a72ca2cf9208dd5608f648292cc3ec08d78534e997a4cd"
+  },
+  "device": "mps",
+  "torch": "2.14.0",
+  "numpy": "2.5.3",
+  "python": "3.13.7",
+  "insertion_angle": null,
+  "signature": "e22faab81b2b71803edeb9fdd3d816715e78ab9233ae3b559f0abb1bd2b5f5ea",
+  "implementation_sha256": "d2bf17e905ace41645268b1756740a8be8fcd83e1ef92ce1d3187a09288bc32f",
+  "geometry": {
+    "insertion_head": {
+      "donor": "head",
+      "rotation_degrees": 114.53790953049514,
+      "rotation_yx": [
+        [
+          -0.41529522418982184,
+          0.909686691540074
+        ],
+        [
+          -0.909686691540074,
+          -0.41529522418982184
+        ]
+      ],
+      "donor_attachment_yx": [
+        29.692307692307693,
+        32.69230769230769
+      ],
+      "wound_attachment_yx": [
+        34.69230769230769,
+        43.69230769230769
+      ],
+      "wound_pixels": 0,
+      "donor_pixels": 114,
+      "graft_pixels": 114,
+      "graft_background_pixels": 114
+    }
+  },
+  "definition": "t=0 follows target attainment. No RGBA or foreground region is erased. The donor (gecko tail or planaria head) is rigidly rotated and placed at the right flank near the midpoint between head and tail attachments, without foreground overlap or cropping. Nearest-neighbor rotation copies exact hidden vectors without resizing or blending. Hidden values are frozen through freeze_steps; afterward local beta=0.1 restores toward the copied donor while the rest restores toward the original mature reference. RGBA evolve freely.",
+  "additional_systems": {
+    "persistent": {
+      "conditions": [
+        {
+          "name": "control",
+          "label": "Control",
+          "wound": null,
+          "donor": null,
+          "reference": "original"
+        },
+        {
+          "name": "insert_head",
+          "label": "Insert second head | free after freeze",
+          "wound": "insertion_head",
+          "donor": "head",
+          "reference": "original"
+        }
+      ],
+      "signature": "16b571a300807c96a539c9667219abff82967dcc1b6fb32ca33589957e3a9ccb",
+      "calibration_sha256": "2c76a23fcc216432e63c2103f720f10c828f287199ebe929ac500c0caf5b0634",
+      "implementation_sha256": "977474e76744648e7eca16475ce1b2d1d8c5c1e507746c3ba6447a469099861c",
+      "definition": "Same manipulation and freeze duration. Persistent evolves freely after freeze without beta restoration."
+    }
+  }
+}

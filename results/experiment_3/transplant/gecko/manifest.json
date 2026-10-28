@@ -1,0 +1,203 @@
+{
+  "protocol": "experiment_3_paired_transplant_references_v2",
+  "manipulation": "transplant",
+  "model": {
+    "channels": 16,
+    "hidden_size": 128,
+    "target_size": 40,
+    "padding": 16,
+    "fire_rate": 0.5,
+    "beta": 0.1,
+    "alpha_threshold": 0.1,
+    "mature_start": 64,
+    "mature_stop": 96,
+    "development_limit": 256,
+    "attainment_patience": 5,
+    "recovery_patience": 20,
+    "calibration_replicates": 32,
+    "acceptance_quantile": 0.95,
+    "seed": 50000
+  },
+  "freeze_steps": 300,
+  "horizon": 6000,
+  "systems": [
+    "persistent",
+    "growing_restore"
+  ],
+  "conditions": {
+    "persistent": [
+      {
+        "name": "control",
+        "label": "Control",
+        "wound": null,
+        "donor": null,
+        "reference": "original"
+      },
+      {
+        "name": "transplant_leg_from_tail",
+        "label": "Leg <- tail | free after freeze",
+        "wound": "leg",
+        "donor": "tail",
+        "reference": "original"
+      },
+      {
+        "name": "transplant_head_from_leg",
+        "label": "Head <- leg | free after freeze",
+        "wound": "head",
+        "donor": "leg",
+        "reference": "original"
+      },
+      {
+        "name": "transplant_tail_from_head",
+        "label": "Tail <- head | free after freeze",
+        "wound": "tail",
+        "donor": "head",
+        "reference": "original"
+      }
+    ],
+    "growing_restore": [
+      {
+        "name": "control",
+        "label": "Control",
+        "wound": null,
+        "donor": null,
+        "reference": "original"
+      },
+      {
+        "name": "transplant_leg_from_tail",
+        "label": "Leg <- tail | original reference",
+        "wound": "leg",
+        "donor": "tail",
+        "reference": "original"
+      },
+      {
+        "name": "transplant_leg_from_tail_donor_reference",
+        "label": "Leg <- tail | donor reference",
+        "wound": "leg",
+        "donor": "tail",
+        "reference": "donor"
+      },
+      {
+        "name": "transplant_head_from_leg",
+        "label": "Head <- leg | original reference",
+        "wound": "head",
+        "donor": "leg",
+        "reference": "original"
+      },
+      {
+        "name": "transplant_head_from_leg_donor_reference",
+        "label": "Head <- leg | donor reference",
+        "wound": "head",
+        "donor": "leg",
+        "reference": "donor"
+      },
+      {
+        "name": "transplant_tail_from_head",
+        "label": "Tail <- head | original reference",
+        "wound": "tail",
+        "donor": "head",
+        "reference": "original"
+      },
+      {
+        "name": "transplant_tail_from_head_donor_reference",
+        "label": "Tail <- head | donor reference",
+        "wound": "tail",
+        "donor": "head",
+        "reference": "donor"
+      }
+    ]
+  },
+  "geometry_sha256": "d8edc274330a0e20a6a8a2eeb2d41f4db7286895c228d58c1968daa7e216b2fa",
+  "target_sha256": "ed2a65721740499ae2e7744b535c02bdbb5781915a8af4ea9741e9c3701c383a",
+  "checkpoints": {
+    "persistent": "f89600ef150279c68c1cbcf820752d23ced66f99baf542e9ff8501da03495f7c",
+    "growing_restore": "602847e4544077a9022b7678231e91ad26d5780cf3936ebd37eff37a0f39f63d"
+  },
+  "device": "mps",
+  "torch": "2.14.0",
+  "numpy": "2.5.3",
+  "python": "3.13.7",
+  "signature": "176d36dc6e9d260a1618b42c601e2af0c51a4d5d190ef17838ad961bc9c65165",
+  "implementation_sha256": "d2bf17e905ace41645268b1756740a8be8fcd83e1ef92ce1d3187a09288bc32f",
+  "geometry": {
+    "leg": {
+      "donor": "tail",
+      "rotation_degrees": 72.05343035493522,
+      "rotation_yx": [
+        [
+          0.3081299660669145,
+          0.9513442720758885
+        ],
+        [
+          -0.9513442720758885,
+          0.3081299660669145
+        ]
+      ],
+      "donor_attachment_yx": [
+        44.111111111111114,
+        42.111111111111114
+      ],
+      "wound_attachment_yx": [
+        41.22222222222222,
+        36.333333333333336
+      ],
+      "wound_pixels": 50,
+      "donor_pixels": 85,
+      "graft_pixels": 84,
+      "graft_background_pixels": 43
+    },
+    "head": {
+      "donor": "leg",
+      "rotation_degrees": 134.40444364249083,
+      "rotation_yx": [
+        [
+          -0.699718750189582,
+          0.7144184142595496
+        ],
+        [
+          -0.7144184142595496,
+          -0.699718750189582
+        ]
+      ],
+      "donor_attachment_yx": [
+        41.22222222222222,
+        36.333333333333336
+      ],
+      "wound_attachment_yx": [
+        28.9,
+        27.8
+      ],
+      "wound_pixels": 101,
+      "donor_pixels": 50,
+      "graft_pixels": 48,
+      "graft_background_pixels": 0
+    },
+    "tail": {
+      "donor": "head",
+      "rotation_degrees": 153.54212600257392,
+      "rotation_yx": [
+        [
+          -0.8952621810236614,
+          0.4455397033135846
+        ],
+        [
+          -0.4455397033135846,
+          -0.8952621810236614
+        ]
+      ],
+      "donor_attachment_yx": [
+        28.9,
+        27.8
+      ],
+      "wound_attachment_yx": [
+        44.111111111111114,
+        42.111111111111114
+      ],
+      "wound_pixels": 85,
+      "donor_pixels": 101,
+      "graft_pixels": 100,
+      "graft_background_pixels": 28
+    }
+  },
+  "definition": "t=0 follows target attainment and contains the post-wound transplant. Donor hidden values are copied from the same mature state with a rigid spatial rotation, aligning outward directions and attachment points; no resizing. Nearest-neighbor rasterization copies exact channel vectors but can change pixel counts. Freeze overrides global restore for updates 1..freeze_steps. After release, Growing compares the original mature reference with donor hidden vectors in the graft footprint only; the reference outside that footprint remains the original mature state. Persistent has no restore. RGBA composites are evaluation references only, never interventions; regime flags refer to the original target. Planaria uses equal-length thirds along the target's longitudinal axis; head at its upper end."
+}

@@ -1,0 +1,156 @@
+{
+  "protocol": "experiment_3_paired_transplant_references_v2",
+  "manipulation": "transplant",
+  "model": {
+    "channels": 16,
+    "hidden_size": 128,
+    "target_size": 40,
+    "padding": 16,
+    "fire_rate": 0.5,
+    "beta": 0.1,
+    "alpha_threshold": 0.1,
+    "mature_start": 64,
+    "mature_stop": 96,
+    "development_limit": 256,
+    "attainment_patience": 5,
+    "recovery_patience": 20,
+    "calibration_replicates": 32,
+    "acceptance_quantile": 0.95,
+    "seed": 50000
+  },
+  "freeze_steps": 300,
+  "horizon": 6000,
+  "systems": [
+    "persistent",
+    "growing_restore"
+  ],
+  "conditions": {
+    "persistent": [
+      {
+        "name": "control",
+        "label": "Control",
+        "wound": null,
+        "donor": null,
+        "reference": "original"
+      },
+      {
+        "name": "transplant_head_from_tail",
+        "label": "Head <- tail | free after freeze",
+        "wound": "head",
+        "donor": "tail",
+        "reference": "original"
+      },
+      {
+        "name": "transplant_tail_from_head",
+        "label": "Tail <- head | free after freeze",
+        "wound": "tail",
+        "donor": "head",
+        "reference": "original"
+      }
+    ],
+    "growing_restore": [
+      {
+        "name": "control",
+        "label": "Control",
+        "wound": null,
+        "donor": null,
+        "reference": "original"
+      },
+      {
+        "name": "transplant_head_from_tail",
+        "label": "Head <- tail | original reference",
+        "wound": "head",
+        "donor": "tail",
+        "reference": "original"
+      },
+      {
+        "name": "transplant_head_from_tail_donor_reference",
+        "label": "Head <- tail | donor reference",
+        "wound": "head",
+        "donor": "tail",
+        "reference": "donor"
+      },
+      {
+        "name": "transplant_tail_from_head",
+        "label": "Tail <- head | original reference",
+        "wound": "tail",
+        "donor": "head",
+        "reference": "original"
+      },
+      {
+        "name": "transplant_tail_from_head_donor_reference",
+        "label": "Tail <- head | donor reference",
+        "wound": "tail",
+        "donor": "head",
+        "reference": "donor"
+      }
+    ]
+  },
+  "geometry_sha256": "08d37c9c8daeb3875e2fb862a7d8a0128a480057db80654a8748ec4d7bd66f57",
+  "target_sha256": "31c86c4bf1ba8b88c1921d9a64082512078ab7f948d51b6438ec396540bf1638",
+  "checkpoints": {
+    "persistent": "d9cd4d1d4276f1dfe0da681bc6dd8b5d1880b97a41a16fa22f6d7b86a65d68ea",
+    "growing_restore": "95f16e6a89149b6ad5a72ca2cf9208dd5608f648292cc3ec08d78534e997a4cd"
+  },
+  "device": "mps",
+  "torch": "2.14.0",
+  "numpy": "2.5.3",
+  "python": "3.13.7",
+  "signature": "3d4b179f151d951a1757479f5c193d7800f64c94f269e0fe51c5e3a536677b32",
+  "implementation_sha256": "d2bf17e905ace41645268b1756740a8be8fcd83e1ef92ce1d3187a09288bc32f",
+  "geometry": {
+    "head": {
+      "donor": "tail",
+      "rotation_degrees": 179.93029229862753,
+      "rotation_yx": [
+        [
+          -0.9999992599071476,
+          0.0012166286028071486
+        ],
+        [
+          -0.0012166286028071486,
+          -0.9999992599071476
+        ]
+      ],
+      "donor_attachment_yx": [
+        41.0,
+        38.0
+      ],
+      "wound_attachment_yx": [
+        29.692307692307693,
+        32.69230769230769
+      ],
+      "wound_pixels": 114,
+      "donor_pixels": 99,
+      "graft_pixels": 99,
+      "graft_background_pixels": 3
+    },
+    "tail": {
+      "donor": "head",
+      "rotation_degrees": -179.93029229862753,
+      "rotation_yx": [
+        [
+          -0.9999992599071476,
+          -0.0012166286028071486
+        ],
+        [
+          0.0012166286028071486,
+          -0.9999992599071476
+        ]
+      ],
+      "donor_attachment_yx": [
+        29.692307692307693,
+        32.69230769230769
+      ],
+      "wound_attachment_yx": [
+        41.0,
+        38.0
+      ],
+      "wound_pixels": 99,
+      "donor_pixels": 114,
+      "graft_pixels": 114,
+      "graft_background_pixels": 22
+    }
+  },
+  "definition": "t=0 follows target attainment and contains the post-wound transplant. Donor hidden values are copied from the same mature state with a rigid spatial rotation, aligning outward directions and attachment points; no resizing. Nearest-neighbor rasterization copies exact channel vectors but can change pixel counts. Freeze overrides global restore for updates 1..freeze_steps. After release, Growing compares the original mature reference with donor hidden vectors in the graft footprint only; the reference outside that footprint remains the original mature state. Persistent has no restore. RGBA composites are evaluation references only, never interventions; regime flags refer to the original target. Planaria uses equal-length thirds along the target's longitudinal axis; head at its upper end."
+}

@@ -1,0 +1,613 @@
+{
+  "schema_version": 1,
+  "exported_on": "2026-10-28",
+  "source_root": "reports/experiment_3",
+  "script": "scripts/experiment_3.py",
+  "script_sha256": "ca86ae788ab0d9387a4383150d8911f529cc27b1d29a5dd34bfc428168750443",
+  "definition": "Byte-for-byte viewing bundle of original Experiment 3 results. No simulation or analysis rerun. Multitarget results and raw trajectory archives are excluded.",
+  "datasets": [
+    {
+      "path": "transplant/gecko",
+      "protocol": "experiment_3_paired_transplant_references_v2",
+      "signature": "176d36dc6e9d260a1618b42c601e2af0c51a4d5d190ef17838ad961bc9c65165",
+      "additional_system_signatures": {},
+      "horizon": 6000,
+      "freeze_steps": 300,
+      "replicates_per_condition": 30,
+      "csv_rows": 330,
+      "conditions": [
+        {
+          "system": "growing_restore",
+          "condition": "control",
+          "replicates": 30
+        },
+        {
+          "system": "growing_restore",
+          "condition": "transplant_head_from_leg",
+          "replicates": 30
+        },
+        {
+          "system": "growing_restore",
+          "condition": "transplant_head_from_leg_donor_reference",
+          "replicates": 30
+        },
+        {
+          "system": "growing_restore",
+          "condition": "transplant_leg_from_tail",
+          "replicates": 30
+        },
+        {
+          "system": "growing_restore",
+          "condition": "transplant_leg_from_tail_donor_reference",
+          "replicates": 30
+        },
+        {
+          "system": "growing_restore",
+          "condition": "transplant_tail_from_head",
+          "replicates": 30
+        },
+        {
+          "system": "growing_restore",
+          "condition": "transplant_tail_from_head_donor_reference",
+          "replicates": 30
+        },
+        {
+          "system": "persistent",
+          "condition": "control",
+          "replicates": 30
+        },
+        {
+          "system": "persistent",
+          "condition": "transplant_head_from_leg",
+          "replicates": 30
+        },
+        {
+          "system": "persistent",
+          "condition": "transplant_leg_from_tail",
+          "replicates": 30
+        },
+        {
+          "system": "persistent",
+          "condition": "transplant_tail_from_head",
+          "replicates": 30
+        }
+      ]
+    },
+    {
+      "path": "transplant/planaria",
+      "protocol": "experiment_3_paired_transplant_references_v2",
+      "signature": "3d4b179f151d951a1757479f5c193d7800f64c94f269e0fe51c5e3a536677b32",
+      "additional_system_signatures": {},
+      "horizon": 6000,
+      "freeze_steps": 300,
+      "replicates_per_condition": 30,
+      "csv_rows": 240,
+      "conditions": [
+        {
+          "system": "growing_restore",
+          "condition": "control",
+          "replicates": 30
+        },
+        {
+          "system": "growing_restore",
+          "condition": "transplant_head_from_tail",
+          "replicates": 30
+        },
+        {
+          "system": "growing_restore",
+          "condition": "transplant_head_from_tail_donor_reference",
+          "replicates": 30
+        },
+        {
+          "system": "growing_restore",
+          "condition": "transplant_tail_from_head",
+          "replicates": 30
+        },
+        {
+          "system": "growing_restore",
+          "condition": "transplant_tail_from_head_donor_reference",
+          "replicates": 30
+        },
+        {
+          "system": "persistent",
+          "condition": "control",
+          "replicates": 30
+        },
+        {
+          "system": "persistent",
+          "condition": "transplant_head_from_tail",
+          "replicates": 30
+        },
+        {
+          "system": "persistent",
+          "condition": "transplant_tail_from_head",
+          "replicates": 30
+        }
+      ]
+    },
+    {
+      "path": "insertion/gecko",
+      "protocol": "experiment_3_hidden_insertion_v4",
+      "signature": "6f52f34c09d4358ddc24626c3a40d634c6527e1ff1e05d96af5ac37aeb6c9890",
+      "additional_system_signatures": {
+        "persistent": "ec4523d1967dfa43139763ded5cb6a82ac9c3e90dcf0a961eb1ec36d2564eb99"
+      },
+      "horizon": 6000,
+      "freeze_steps": 300,
+      "replicates_per_condition": 30,
+      "csv_rows": 120,
+      "conditions": [
+        {
+          "system": "growing_restore",
+          "condition": "control",
+          "replicates": 30
+        },
+        {
+          "system": "growing_restore",
+          "condition": "insert_tail",
+          "replicates": 30
+        },
+        {
+          "system": "persistent",
+          "condition": "control",
+          "replicates": 30
+        },
+        {
+          "system": "persistent",
+          "condition": "insert_tail",
+          "replicates": 30
+        }
+      ]
+    },
+    {
+      "path": "insertion/planaria",
+      "protocol": "experiment_3_hidden_insertion_v4",
+      "signature": "e22faab81b2b71803edeb9fdd3d816715e78ab9233ae3b559f0abb1bd2b5f5ea",
+      "additional_system_signatures": {
+        "persistent": "16b571a300807c96a539c9667219abff82967dcc1b6fb32ca33589957e3a9ccb"
+      },
+      "horizon": 6000,
+      "freeze_steps": 300,
+      "replicates_per_condition": 30,
+      "csv_rows": 120,
+      "conditions": [
+        {
+          "system": "growing_restore",
+          "condition": "control",
+          "replicates": 30
+        },
+        {
+          "system": "growing_restore",
+          "condition": "insert_head",
+          "replicates": 30
+        },
+        {
+          "system": "persistent",
+          "condition": "control",
+          "replicates": 30
+        },
+        {
+          "system": "persistent",
+          "condition": "insert_head",
+          "replicates": 30
+        }
+      ]
+    },
+    {
+      "path": "insertion_persistent_local_restore/gecko",
+      "protocol": "experiment_3_hidden_insertion_v4",
+      "signature": "04718fa3265b1174a3328386ef17eee3a9402300913675a01956a884b4e71f8e",
+      "additional_system_signatures": {},
+      "horizon": 2000,
+      "freeze_steps": 300,
+      "replicates_per_condition": 30,
+      "csv_rows": 90,
+      "conditions": [
+        {
+          "system": "persistent",
+          "condition": "control",
+          "replicates": 30
+        },
+        {
+          "system": "persistent",
+          "condition": "insert_tail",
+          "replicates": 30
+        },
+        {
+          "system": "persistent",
+          "condition": "insert_tail_local_restore",
+          "replicates": 30
+        }
+      ]
+    },
+    {
+      "path": "insertion_persistent_local_restore/planaria",
+      "protocol": "experiment_3_hidden_insertion_v4",
+      "signature": "c106605b9f5962bd6f4309cf946cb467f6cbb4630bed45c038dab0f7cecede62",
+      "additional_system_signatures": {},
+      "horizon": 2000,
+      "freeze_steps": 300,
+      "replicates_per_condition": 30,
+      "csv_rows": 90,
+      "conditions": [
+        {
+          "system": "persistent",
+          "condition": "control",
+          "replicates": 30
+        },
+        {
+          "system": "persistent",
+          "condition": "insert_head",
+          "replicates": 30
+        },
+        {
+          "system": "persistent",
+          "condition": "insert_head_local_restore",
+          "replicates": 30
+        }
+      ]
+    }
+  ],
+  "files": [
+    {
+      "path": "transplant/gecko/analysis/growing_restore/snapshots_replica_004.png",
+      "source": "reports/experiment_3/transplant/gecko/analysis/growing_restore/snapshots_replica_004.png",
+      "bytes": 423476,
+      "sha256": "8d642b2f2b9b525ad00bcaed425146a815e797cbf5263b6f23c092676784ff05"
+    },
+    {
+      "path": "transplant/gecko/analysis/growing_restore/snapshots_replica_020.png",
+      "source": "reports/experiment_3/transplant/gecko/analysis/growing_restore/snapshots_replica_020.png",
+      "bytes": 423739,
+      "sha256": "0b1146df4e64a449e00b140c7f7c66dd7bba90ae6a2deb8937317bb24c882d3c"
+    },
+    {
+      "path": "transplant/gecko/analysis/growing_restore/snapshots_replica_024.png",
+      "source": "reports/experiment_3/transplant/gecko/analysis/growing_restore/snapshots_replica_024.png",
+      "bytes": 425956,
+      "sha256": "af44cecdc932b4c9589b7e7a6d3882691491bc82ec3d330d055cee33a0e72f3a"
+    },
+    {
+      "path": "transplant/gecko/analysis/morphology_metrics.png",
+      "source": "reports/experiment_3/transplant/gecko/analysis/morphology_metrics.png",
+      "bytes": 685213,
+      "sha256": "933af5895ab169ef2229b4b9005eb06748fc2ba7d5dd5cbc06960d8ce07eb549"
+    },
+    {
+      "path": "transplant/gecko/analysis/per_run_summary.csv",
+      "source": "reports/experiment_3/transplant/gecko/analysis/per_run_summary.csv",
+      "bytes": 83265,
+      "sha256": "5a6a3a9737bfba700f2ccaa11d9843532eb608845c530ce9bbca60f013cc7d71"
+    },
+    {
+      "path": "transplant/gecko/analysis/persistent/snapshots_replica_001.png",
+      "source": "reports/experiment_3/transplant/gecko/analysis/persistent/snapshots_replica_001.png",
+      "bytes": 866767,
+      "sha256": "2bf3ce5a26d1293ade9ce44946b59fd239158869894c1f221f444d335f2ea3f4"
+    },
+    {
+      "path": "transplant/gecko/analysis/persistent/snapshots_replica_003.png",
+      "source": "reports/experiment_3/transplant/gecko/analysis/persistent/snapshots_replica_003.png",
+      "bytes": 868888,
+      "sha256": "9f6f3b90d702d182ed30ff68852ae9da9105d17c10f9e211670638f5797f7ad9"
+    },
+    {
+      "path": "transplant/gecko/analysis/persistent/snapshots_replica_024.png",
+      "source": "reports/experiment_3/transplant/gecko/analysis/persistent/snapshots_replica_024.png",
+      "bytes": 865788,
+      "sha256": "aa475eaef4686b77d29a1768df0c23bec8357209dc0db3dd8d06a9ded1dff8fc"
+    },
+    {
+      "path": "transplant/gecko/calibration.json",
+      "source": "reports/experiment_3/transplant/gecko/calibration.json",
+      "bytes": 462,
+      "sha256": "6749382e97a3775d9d40e78543bf27917e786db750bc23ab5deb6097a36e690f"
+    },
+    {
+      "path": "transplant/gecko/manifest.json",
+      "source": "reports/experiment_3/transplant/gecko/manifest.json",
+      "bytes": 5933,
+      "sha256": "bd9343ecbbcb2239d49e1ed66dcc3b8ae6a49f635cbeba8115c72a6241e864ed"
+    },
+    {
+      "path": "transplant/gecko/transplant_preview.png",
+      "source": "reports/experiment_3/transplant/gecko/transplant_preview.png",
+      "bytes": 111225,
+      "sha256": "3dc31e9e22f9787dc792dd0331617f001a5b1ed80c8a7308dd446e483e7ce13e"
+    },
+    {
+      "path": "transplant/planaria/analysis/growing_restore/snapshots_replica_004.png",
+      "source": "reports/experiment_3/transplant/planaria/analysis/growing_restore/snapshots_replica_004.png",
+      "bytes": 450244,
+      "sha256": "64a893b6422e4fa0435119d06efcc12fa905022b46bddf2b81259845cc9ed2c2"
+    },
+    {
+      "path": "transplant/planaria/analysis/growing_restore/snapshots_replica_025.png",
+      "source": "reports/experiment_3/transplant/planaria/analysis/growing_restore/snapshots_replica_025.png",
+      "bytes": 466312,
+      "sha256": "dc3434e8d6de01d1eff6cdb6ae6459cedaac02317d1a01782345297d7ff902cd"
+    },
+    {
+      "path": "transplant/planaria/analysis/growing_restore/snapshots_replica_028.png",
+      "source": "reports/experiment_3/transplant/planaria/analysis/growing_restore/snapshots_replica_028.png",
+      "bytes": 462644,
+      "sha256": "45a4a1d7f50efec1ef6e2df0535efd2d1e16828dbea21c752e58171c226564cb"
+    },
+    {
+      "path": "transplant/planaria/analysis/morphology_metrics.png",
+      "source": "reports/experiment_3/transplant/planaria/analysis/morphology_metrics.png",
+      "bytes": 651069,
+      "sha256": "9851ea9330c17286edef8ebc9c2a4d3f416d9df6618e4c9d69f0dd42fbaf6596"
+    },
+    {
+      "path": "transplant/planaria/analysis/per_run_summary.csv",
+      "source": "reports/experiment_3/transplant/planaria/analysis/per_run_summary.csv",
+      "bytes": 58650,
+      "sha256": "b7358f612675f75d3187b4552920a6fb31dfb680546339996733a746c1638529"
+    },
+    {
+      "path": "transplant/planaria/analysis/persistent/snapshots_replica_016.png",
+      "source": "reports/experiment_3/transplant/planaria/analysis/persistent/snapshots_replica_016.png",
+      "bytes": 426458,
+      "sha256": "7d73a0f33da460ca284db58ee46e61f5bc4daf861b0f0ed09e43a549e08127f3"
+    },
+    {
+      "path": "transplant/planaria/analysis/persistent/snapshots_replica_025.png",
+      "source": "reports/experiment_3/transplant/planaria/analysis/persistent/snapshots_replica_025.png",
+      "bytes": 454676,
+      "sha256": "acce04f84c21696970fe515074d1b6a0beeb0aa9e46d13f9fc4f639b33edfe69"
+    },
+    {
+      "path": "transplant/planaria/analysis/persistent/snapshots_replica_028.png",
+      "source": "reports/experiment_3/transplant/planaria/analysis/persistent/snapshots_replica_028.png",
+      "bytes": 458354,
+      "sha256": "8eab397ed6f2addb901da6cede67fc730728fa657c20ffa10122b5069ca2f789"
+    },
+    {
+      "path": "transplant/planaria/calibration.json",
+      "source": "reports/experiment_3/transplant/planaria/calibration.json",
+      "bytes": 462,
+      "sha256": "2c76a23fcc216432e63c2103f720f10c828f287199ebe929ac500c0caf5b0634"
+    },
+    {
+      "path": "transplant/planaria/manifest.json",
+      "source": "reports/experiment_3/transplant/planaria/manifest.json",
+      "bytes": 4780,
+      "sha256": "823197986f69feea35b8d08d00f3a76274f08e0a094f1c12ce2530da208078a6"
+    },
+    {
+      "path": "transplant/planaria/transplant_preview.png",
+      "source": "reports/experiment_3/transplant/planaria/transplant_preview.png",
+      "bytes": 75022,
+      "sha256": "2a0687ef8e002dd613595d6ef3033fd464abd8de8db82ccb755a81a2c600e2c7"
+    },
+    {
+      "path": "insertion/gecko/analysis/growing_restore/snapshots_replica_004.png",
+      "source": "reports/experiment_3/insertion/gecko/analysis/growing_restore/snapshots_replica_004.png",
+      "bytes": 457762,
+      "sha256": "7ccab0f3b8022656af524d64f22c35b128629440eded8c6e04fdb938a5713596"
+    },
+    {
+      "path": "insertion/gecko/analysis/growing_restore/snapshots_replica_020.png",
+      "source": "reports/experiment_3/insertion/gecko/analysis/growing_restore/snapshots_replica_020.png",
+      "bytes": 456700,
+      "sha256": "efba6eb034c6de07ce9b19421142e4ed1922b6f1f618e1175cfcce6cbf99541a"
+    },
+    {
+      "path": "insertion/gecko/analysis/growing_restore/snapshots_replica_024.png",
+      "source": "reports/experiment_3/insertion/gecko/analysis/growing_restore/snapshots_replica_024.png",
+      "bytes": 462065,
+      "sha256": "10cfd617ea159ad68d40647b0f7e71e468cbdf9a59448236952a6363513b801a"
+    },
+    {
+      "path": "insertion/gecko/analysis/morphology_metrics.png",
+      "source": "reports/experiment_3/insertion/gecko/analysis/morphology_metrics.png",
+      "bytes": 558184,
+      "sha256": "a4f5cf8454c62d63f71da1445a1353630a26b6a93cc0ed0dc7bbfaf37e3947b2"
+    },
+    {
+      "path": "insertion/gecko/analysis/per_run_summary.csv",
+      "source": "reports/experiment_3/insertion/gecko/analysis/per_run_summary.csv",
+      "bytes": 28090,
+      "sha256": "1a420efcf5da3e33b98598592548128785dc790a086eca65d91d6766b489ddb1"
+    },
+    {
+      "path": "insertion/gecko/analysis/persistent/snapshots_replica_001.png",
+      "source": "reports/experiment_3/insertion/gecko/analysis/persistent/snapshots_replica_001.png",
+      "bytes": 451773,
+      "sha256": "a0ebab5d2f637764a7e9c55e95bf6605582ca49cf07343cf6ecfda2244abb2b5"
+    },
+    {
+      "path": "insertion/gecko/analysis/persistent/snapshots_replica_003.png",
+      "source": "reports/experiment_3/insertion/gecko/analysis/persistent/snapshots_replica_003.png",
+      "bytes": 415183,
+      "sha256": "0995454af8d2738b0d978c027c67d980609f3f22bb52a489053e3be0e0135dc5"
+    },
+    {
+      "path": "insertion/gecko/analysis/persistent/snapshots_replica_024.png",
+      "source": "reports/experiment_3/insertion/gecko/analysis/persistent/snapshots_replica_024.png",
+      "bytes": 415253,
+      "sha256": "f0ce70cef865458b23b23b2a3ae8717d4bcba7449538d76552db9702a1e903c6"
+    },
+    {
+      "path": "insertion/gecko/calibration.json",
+      "source": "reports/experiment_3/insertion/gecko/calibration.json",
+      "bytes": 462,
+      "sha256": "6749382e97a3775d9d40e78543bf27917e786db750bc23ab5deb6097a36e690f"
+    },
+    {
+      "path": "insertion/gecko/insertion_preview.png",
+      "source": "reports/experiment_3/insertion/gecko/insertion_preview.png",
+      "bytes": 70593,
+      "sha256": "8a364c1630747c51aedfc98e49f82bbecae2aa77a2dc821f17f04ba45887fda6"
+    },
+    {
+      "path": "insertion/gecko/manifest.json",
+      "source": "reports/experiment_3/insertion/gecko/manifest.json",
+      "bytes": 3595,
+      "sha256": "d542f9e45edb5fe62da586a587007adcde3fcdcd930702cdc0cb98c2191b24cd"
+    },
+    {
+      "path": "insertion/planaria/analysis/growing_restore/snapshots_replica_004.png",
+      "source": "reports/experiment_3/insertion/planaria/analysis/growing_restore/snapshots_replica_004.png",
+      "bytes": 480657,
+      "sha256": "4a71c1e8b293148a6039ea9bf2c2e3e3f85323c704db978bfdbbde099760b58f"
+    },
+    {
+      "path": "insertion/planaria/analysis/growing_restore/snapshots_replica_025.png",
+      "source": "reports/experiment_3/insertion/planaria/analysis/growing_restore/snapshots_replica_025.png",
+      "bytes": 470652,
+      "sha256": "99e9a62cb9c6fb6343855ab938145f98bf458c2d65aceb3366547ca6c75fff42"
+    },
+    {
+      "path": "insertion/planaria/analysis/growing_restore/snapshots_replica_028.png",
+      "source": "reports/experiment_3/insertion/planaria/analysis/growing_restore/snapshots_replica_028.png",
+      "bytes": 483412,
+      "sha256": "8e144e52e527c7b81f3a782d3c48b2c433bf63af2dfd9e37ea73a8a2aefcf14d"
+    },
+    {
+      "path": "insertion/planaria/analysis/morphology_metrics.png",
+      "source": "reports/experiment_3/insertion/planaria/analysis/morphology_metrics.png",
+      "bytes": 556729,
+      "sha256": "5175e02fb0fe46ec4481ea85a19b88aa04cdbccc5e08e5fdc16561c5bebdd6bc"
+    },
+    {
+      "path": "insertion/planaria/analysis/per_run_summary.csv",
+      "source": "reports/experiment_3/insertion/planaria/analysis/per_run_summary.csv",
+      "bytes": 27175,
+      "sha256": "48c1182ee592de989db8e30f33fce71a66b6ba032426f3cfc7a0f739a3141774"
+    },
+    {
+      "path": "insertion/planaria/analysis/persistent/snapshots_replica_016.png",
+      "source": "reports/experiment_3/insertion/planaria/analysis/persistent/snapshots_replica_016.png",
+      "bytes": 327025,
+      "sha256": "65112e3ed78c6a07bfad714ba36515bc60016e44e2daace80b79da636e3f915a"
+    },
+    {
+      "path": "insertion/planaria/analysis/persistent/snapshots_replica_025.png",
+      "source": "reports/experiment_3/insertion/planaria/analysis/persistent/snapshots_replica_025.png",
+      "bytes": 307658,
+      "sha256": "2a68754c2541ad66abeb88911066c8b6997ac38d24059f033090d0311aee4add"
+    },
+    {
+      "path": "insertion/planaria/analysis/persistent/snapshots_replica_028.png",
+      "source": "reports/experiment_3/insertion/planaria/analysis/persistent/snapshots_replica_028.png",
+      "bytes": 329091,
+      "sha256": "ca775c28ece75291fbc4526a373ec8491f925199954aa767c0ec7023f873b7a2"
+    },
+    {
+      "path": "insertion/planaria/calibration.json",
+      "source": "reports/experiment_3/insertion/planaria/calibration.json",
+      "bytes": 462,
+      "sha256": "2c76a23fcc216432e63c2103f720f10c828f287199ebe929ac500c0caf5b0634"
+    },
+    {
+      "path": "insertion/planaria/insertion_preview.png",
+      "source": "reports/experiment_3/insertion/planaria/insertion_preview.png",
+      "bytes": 54710,
+      "sha256": "a781b6dfd896757d0c3df0bf03660a8749eee732e317a86bfe7ba759177fbc05"
+    },
+    {
+      "path": "insertion/planaria/manifest.json",
+      "source": "reports/experiment_3/insertion/planaria/manifest.json",
+      "bytes": 3634,
+      "sha256": "5c4e7750922349097901c3a6af5db192f82af8110267b4975835ee8eaba3e8c6"
+    },
+    {
+      "path": "insertion_persistent_local_restore/gecko/analysis/morphology_metrics.png",
+      "source": "reports/experiment_3/insertion_persistent_local_restore/gecko/analysis/morphology_metrics.png",
+      "bytes": 323316,
+      "sha256": "5a0695a47ba48c52853a8127b8d35f9dc3cd1a2f9055a6f2de6f2151882f11ac"
+    },
+    {
+      "path": "insertion_persistent_local_restore/gecko/analysis/per_run_summary.csv",
+      "source": "reports/experiment_3/insertion_persistent_local_restore/gecko/analysis/per_run_summary.csv",
+      "bytes": 21229,
+      "sha256": "bed35940366ccca745324eee75ad3d1f51b5150b6c686f9e27c05f20191b32f2"
+    },
+    {
+      "path": "insertion_persistent_local_restore/gecko/analysis/persistent/snapshots_replica_001.png",
+      "source": "reports/experiment_3/insertion_persistent_local_restore/gecko/analysis/persistent/snapshots_replica_001.png",
+      "bytes": 578283,
+      "sha256": "daf5fac56430b94415e166bbc76dc40fedb38ff244006433c584cb6a35972543"
+    },
+    {
+      "path": "insertion_persistent_local_restore/gecko/analysis/persistent/snapshots_replica_003.png",
+      "source": "reports/experiment_3/insertion_persistent_local_restore/gecko/analysis/persistent/snapshots_replica_003.png",
+      "bytes": 548905,
+      "sha256": "2e5959fde9d8b3ea34b5f3b6d460270c7dfa03a3745c559a9ac75c755399c55c"
+    },
+    {
+      "path": "insertion_persistent_local_restore/gecko/analysis/persistent/snapshots_replica_024.png",
+      "source": "reports/experiment_3/insertion_persistent_local_restore/gecko/analysis/persistent/snapshots_replica_024.png",
+      "bytes": 567385,
+      "sha256": "19acbf42ec98d717b3a12fdd1fa7742db0f14c8de100b91036803b902c4639ee"
+    },
+    {
+      "path": "insertion_persistent_local_restore/gecko/calibration.json",
+      "source": "reports/experiment_3/insertion_persistent_local_restore/gecko/calibration.json",
+      "bytes": 462,
+      "sha256": "6749382e97a3775d9d40e78543bf27917e786db750bc23ab5deb6097a36e690f"
+    },
+    {
+      "path": "insertion_persistent_local_restore/gecko/insertion_preview.png",
+      "source": "reports/experiment_3/insertion_persistent_local_restore/gecko/insertion_preview.png",
+      "bytes": 70593,
+      "sha256": "8a364c1630747c51aedfc98e49f82bbecae2aa77a2dc821f17f04ba45887fda6"
+    },
+    {
+      "path": "insertion_persistent_local_restore/gecko/manifest.json",
+      "source": "reports/experiment_3/insertion_persistent_local_restore/gecko/manifest.json",
+      "bytes": 3162,
+      "sha256": "4ef8d60b99379c0ea4b66912a1cafae848d598b1e7a337d3a71141365790e3a0"
+    },
+    {
+      "path": "insertion_persistent_local_restore/planaria/analysis/morphology_metrics.png",
+      "source": "reports/experiment_3/insertion_persistent_local_restore/planaria/analysis/morphology_metrics.png",
+      "bytes": 282300,
+      "sha256": "3a96e9ef94c5ffee7360c0c58edf981690d918009d6da72d30c6f79b498292a0"
+    },
+    {
+      "path": "insertion_persistent_local_restore/planaria/analysis/per_run_summary.csv",
+      "source": "reports/experiment_3/insertion_persistent_local_restore/planaria/analysis/per_run_summary.csv",
+      "bytes": 20418,
+      "sha256": "a92f6fd10e4dc37aaf3f263c8f2a99d77f6d6d646e09b6a741adb19fbc9b259d"
+    },
+    {
+      "path": "insertion_persistent_local_restore/planaria/analysis/persistent/snapshots_replica_003.png",
+      "source": "reports/experiment_3/insertion_persistent_local_restore/planaria/analysis/persistent/snapshots_replica_003.png",
+      "bytes": 395109,
+      "sha256": "155e3c0c2551b29a0add54eadc9df3a5261a60a9eccbf5e8589c08518f64f9b3"
+    },
+    {
+      "path": "insertion_persistent_local_restore/planaria/analysis/persistent/snapshots_replica_016.png",
+      "source": "reports/experiment_3/insertion_persistent_local_restore/planaria/analysis/persistent/snapshots_replica_016.png",
+      "bytes": 406852,
+      "sha256": "bfb4d9d74c11665137ac1861432557856c2b3010260a3819e742fc4b07e07534"
+    },
+    {
+      "path": "insertion_persistent_local_restore/planaria/analysis/persistent/snapshots_replica_028.png",
+      "source": "reports/experiment_3/insertion_persistent_local_restore/planaria/analysis/persistent/snapshots_replica_028.png",
+      "bytes": 404533,
+      "sha256": "1b779ef1a892398952e281784d286297d7ebcf3cecd1fc61a35c2dc57a0dce1d"
+    },
+    {
+      "path": "insertion_persistent_local_restore/planaria/calibration.json",
+      "source": "reports/experiment_3/insertion_persistent_local_restore/planaria/calibration.json",
+      "bytes": 462,
+      "sha256": "2c76a23fcc216432e63c2103f720f10c828f287199ebe929ac500c0caf5b0634"
+    },
+    {
+      "path": "insertion_persistent_local_restore/planaria/insertion_preview.png",
+      "source": "reports/experiment_3/insertion_persistent_local_restore/planaria/insertion_preview.png",
+      "bytes": 54710,
+      "sha256": "a781b6dfd896757d0c3df0bf03660a8749eee732e317a86bfe7ba759177fbc05"
+    },
+    {
+      "path": "insertion_persistent_local_restore/planaria/manifest.json",
+      "source": "reports/experiment_3/insertion_persistent_local_restore/planaria/manifest.json",
+      "bytes": 3201,
+      "sha256": "6db10bbf05629bde390c7be7b24191aeba2602cfaa064df4b0acc956855a5b9b"
+    }
+  ]
+}
